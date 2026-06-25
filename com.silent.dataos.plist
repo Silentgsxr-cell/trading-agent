@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.silent.dailybrief</string>
+    <string>com.silent.dataos</string>
 
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/daily_brief.py</string>
+        <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/dataos.py</string>
     </array>
 
     <key>StartCalendarInterval</key>
@@ -33,9 +33,9 @@
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/daily_brief.log</string>
+    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dataos.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/daily_brief_error.log</string>
+    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dataos_error.log</string>
 
     <key>RunAtLoad</key>
     <false/>

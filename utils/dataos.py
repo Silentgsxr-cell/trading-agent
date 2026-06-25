@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """
-utils/daily_brief.py — Silent's 6:20 AM morning brief.
+utils/dataos.py — Silent's 6:20 AM morning brief.
 Sends a Discord embed: market status, TSLA bias, watchlist scan,
 SPY tone, trading rules, session status, journal edge, edge reminder.
+Watchlist and send time are loaded from data/dataos_config.json.
 """
 
 import sys
@@ -29,7 +30,13 @@ EASTERN      = pytz.timezone("America/New_York")
 ARIZONA      = pytz.timezone("America/Phoenix")
 EMBED_COLOR  = 0x1A2744
 
-WATCHLIST = ["TSLA", "QQQ", "NVDA", "AAPL", "MSFT", "META", "AMZN", "GOOG", "CSCO", "TTWO"]
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "data", "dataos_config.json")
+
+DEFAULT_CONFIG = {
+    "send_time": "06:20",
+    "watchlist": ["TSLA", "QQQ", "NVDA", "AAPL", "MSFT", "META", "AMZN", "GOOG", "CSCO", "TTWO"],
+    "timezone": "America/Phoenix",
+}
 
 # NYSE holidays 2025-2026
 HOLIDAYS = {
@@ -42,6 +49,15 @@ HOLIDAYS = {
     datetime.date(2026, 7, 3),  datetime.date(2026, 9, 7),   datetime.date(2026, 11, 26),
     datetime.date(2026, 12, 25),
 }
+
+
+def load_config() -> dict:
+    try:
+        with open(CONFIG_PATH) as f:
+            data = json.load(f)
+        return {**DEFAULT_CONFIG, **data}
+    except Exception:
+        return DEFAULT_CONFIG.copy()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -183,10 +199,11 @@ def s2_tsla_bias() -> str:
 # ── Section 3 — Watchlist Scan ────────────────────────────────────────────────
 
 def s3_watchlist() -> str:
+    watchlist = load_config().get("watchlist", DEFAULT_CONFIG["watchlist"])
     lines = ["```"]
     lines.append(f"{'SYM':<5} {'PRICE':>8}  {'CHG%':>7}  DIR")
     lines.append("─" * 33)
-    for sym in WATCHLIST:
+    for sym in watchlist:
         price, _, chg = _ticker_premarket(sym)
         if price and chg is not None:
             flag     = "*" if abs(chg) >= 1.5 else " "
@@ -336,10 +353,10 @@ def send_brief():
     ]
 
     # Measure total embed size; split at section 5 if approaching 5800 chars
-    total = sum(len(f["name"]) + len(f["value"]) for f in fields) + 40  # +40 for title/footer
+    total = sum(len(f["name"]) + len(f["value"]) for f in fields) + 40
     split = total > 5800
 
-    footer_text = f"ClawOps · Paper Mode · {now_az.strftime('%-I:%M %p AZ')}"
+    footer_text = f"ClawOps · DataOS · {now_az.strftime('%-I:%M %p AZ')}"
 
     if split:
         embeds = [
