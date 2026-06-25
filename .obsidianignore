@@ -1,0 +1,7 @@
+mission-control/node_modules
+mission-control/.next
+__pycache__
+.git
+*.pyc
+data/
+logs/
