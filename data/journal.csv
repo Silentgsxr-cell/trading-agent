@@ -1,0 +1,5 @@
+date,ticker,strategy,entry,stop,target,exit,pnl,trade_type,was_planned,chased,followed_stop,lesson,discipline_grade
+2026-05-28,QQQ,ORB Long,481.51,,,484.08,12.85,Paper,Yes,No,Yes,,A
+2026-05-28,TSLA,ORB Long,396,56,,,,Paper,Yes,No,Yes,,B
+2026-05-28,TSLA,ORB Long,,,,,-900,Paper,Yes,No,Yes,,B
+2026-06-20,TSLA,ORB Long,,,,,,Paper,Yes,No,Yes,,B

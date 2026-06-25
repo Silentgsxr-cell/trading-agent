@@ -1,0 +1,11 @@
+{
+  "date": "2026-06-24",
+  "startingBalance": 0,
+  "currentBalance": 0,
+  "dailyPnl": 0,
+  "consecutiveLosses": 0,
+  "halted": false,
+  "haltReason": null,
+  "openPositions": 0,
+  "tradesToday": 0
+}
