@@ -4,13 +4,11 @@
 <dict>
     <key>Label</key>
     <string>com.silent.dataos</string>
-
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/dataos.py</string>
+        <string>/Users/silent/trading-agent 2/utils/dataos.py</string>
     </array>
-
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
@@ -18,10 +16,8 @@
         <key>Minute</key>
         <integer>20</integer>
     </dict>
-
     <key>WorkingDirectory</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2</string>
-
+    <string>/Users/silent/trading-agent 2</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
@@ -31,12 +27,10 @@
         <key>PYTHONPATH</key>
         <string>/Users/silent/Library/Python/3.9/lib/python/site-packages</string>
     </dict>
-
     <key>StandardOutPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dataos.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dataos.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dataos_error.log</string>
-
+    <string>/Users/silent/trading-agent 2/logs/dataos_error.log</string>
     <key>RunAtLoad</key>
     <false/>
 </dict>

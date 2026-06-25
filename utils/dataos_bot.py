@@ -30,6 +30,7 @@ from dataos import (
     s5_rules, s6_session, s7_journal, s8_edge,
     EMBED_COLOR, DEFAULT_CONFIG, load_config,
 )
+from dataos_logger import log
 
 BOT_TOKEN   = os.getenv("DISCORD_BOT_TOKEN", "")
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
@@ -68,6 +69,7 @@ def _embed(title: str, value: str, footer: str = "") -> discord.Embed:
 @bot.event
 async def on_ready():
     print(f"✅  DataOS bot connected as {bot.user}")
+    log("🤖", "Bot Online", f"Connected as {bot.user}")
     if WEBHOOK_URL:
         try:
             requests.post(
@@ -120,12 +122,15 @@ async def cmd_brief(ctx):
             embed2.set_footer(text="ClawOps · DataOS · Paper Mode")
             await ctx.send(embed=embed2)
 
+        log("🤖", "Bot: !brief", f"On-demand brief sent in #{ctx.channel.name}")
+
 
 @bot.command(name="tsla")
 async def cmd_tsla(ctx):
     """TSLA premarket bias: price, EMA 9, prior/premarket H/L."""
     async with ctx.typing():
         await ctx.send(embed=_embed("📈 TSLA Direction Bias", await _run(s2_tsla_bias)))
+    log("🤖", "Bot: !tsla", f"TSLA bias requested in #{ctx.channel.name}")
 
 
 @bot.command(name="watchlist")
@@ -180,8 +185,10 @@ async def cmd_config(ctx, *args):
             await ctx.send("❌ Invalid time. Use `!config time HH:MM` (24-hour, e.g. `06:20`)")
             return
 
+        old_time = cfg.get("send_time", "06:20")
         cfg["send_time"] = args[1]
         _save_config(cfg)
+        log("⚙️", f"Config: Brief time changed", f"`{old_time}` → `{args[1]}` {cfg.get('timezone','America/Phoenix')}")
 
         # Update Hour/Minute in the plist file so next launchctl reload uses the new time
         plist_note = ""
@@ -220,6 +227,7 @@ async def cmd_config(ctx, *args):
                 cfg["watchlist"] = wl
                 _save_config(cfg)
                 await ctx.send(f"✅ Added **{symbol}** to watchlist ({len(wl)} symbols).")
+                log("⚙️", f"Config: Watchlist +{symbol}", f"Added {symbol} · {len(wl)} symbols total")
 
         elif action == "remove":
             if symbol not in wl:
@@ -229,6 +237,7 @@ async def cmd_config(ctx, *args):
                 cfg["watchlist"] = wl
                 _save_config(cfg)
                 await ctx.send(f"✅ Removed **{symbol}** from watchlist ({len(wl)} symbols).")
+                log("⚙️", f"Config: Watchlist -{symbol}", f"Removed {symbol} · {len(wl)} symbols remaining")
 
         else:
             await ctx.send("❌ Usage: `!config watchlist add SYMBOL` or `!config watchlist remove SYMBOL`")

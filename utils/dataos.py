@@ -24,6 +24,7 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from config import risk_config as cfg
 from config import strategy_config as scfg
+from utils.dataos_logger import log
 
 WEBHOOK_URL  = os.getenv("DISCORD_WEBHOOK_URL", "")
 EASTERN      = pytz.timezone("America/New_York")
@@ -381,9 +382,17 @@ def send_brief():
 
     resp = requests.post(WEBHOOK_URL, json={"embeds": embeds}, timeout=20)
     if resp.status_code == 204:
-        print(f"✅  Morning brief sent at {now_az.strftime('%-I:%M %p AZ')} ({'2 embeds' if split else '1 embed'})")
+        label = "2 embeds" if split else "1 embed"
+        print(f"✅  Morning brief sent at {now_az.strftime('%-I:%M %p AZ')} ({label})")
+        tsla_line = fields[1]["value"].split("\n")[0]   # first line: price + bias
+        spy_line  = fields[3]["value"].split("\n")[1]   # second line: RISK ON/OFF/NEUTRAL
+        log("🌅", "Morning Brief Sent",
+            f"**TSLA:** {tsla_line}\n"
+            f"**SPY:** {spy_line}\n"
+            f"Sent at {now_az.strftime('%-I:%M %p AZ')} · {label}")
     else:
         print(f"❌  Discord error {resp.status_code}: {resp.text}")
+        log("⚠️", "Morning Brief Failed", f"Discord returned {resp.status_code}")
         sys.exit(1)
 
 

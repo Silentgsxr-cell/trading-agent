@@ -3,12 +3,19 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.silent.dataos.bot</string>
+    <string>com.silent.dataos.sync</string>
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/silent/trading-agent 2/utils/dataos_bot.py</string>
+        <string>/Users/silent/trading-agent 2/utils/dataos_sync.py</string>
     </array>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>16</integer>
+        <key>Minute</key>
+        <integer>30</integer>
+    </dict>
     <key>WorkingDirectory</key>
     <string>/Users/silent/trading-agent 2</string>
     <key>EnvironmentVariables</key>
@@ -20,15 +27,11 @@
         <key>PYTHONPATH</key>
         <string>/Users/silent/Library/Python/3.9/lib/python/site-packages</string>
     </dict>
-    <key>RunAtLoad</key>
-    <true/>
-    <key>KeepAlive</key>
-    <true/>
-    <key>ThrottleInterval</key>
-    <integer>30</integer>
     <key>StandardOutPath</key>
-    <string>/Users/silent/trading-agent 2/logs/dataos_bot.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dataos_sync.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/silent/trading-agent 2/logs/dataos_bot_error.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dataos_sync_error.log</string>
+    <key>RunAtLoad</key>
+    <false/>
 </dict>
 </plist>
