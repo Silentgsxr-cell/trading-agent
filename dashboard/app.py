@@ -35,6 +35,7 @@ import agent.notifier as notify
 
 from agents.risk_engine import RiskEngine
 from config import risk_config as cfg
+from agent.backtester      import run_backtest
 
 app = Flask(__name__, template_folder='templates')
 
@@ -219,6 +220,26 @@ def api_status_reset():
     _engine = RiskEngine()
     notify.session_reset()
     return jsonify({'success': True, 'message': 'Session reset — new trading day.'})
+
+
+# ─── API: Backtest ───────────────────────────────────────────────────────────
+
+@app.route('/api/backtest', methods=['POST'])
+def api_backtest():
+    data = request.get_json(force=True) or {}
+    try:
+        result = run_backtest(
+            ticker       = data.get('ticker', 'TSLA'),
+            trading_days = int(data.get('days', 30)),
+            account_size = float(data.get('account_size', 1000)),
+            risk_pct     = float(data.get('risk_pct', 1.0)),
+            target_r     = float(data.get('target_r', 2.0)),
+        )
+        return jsonify(result)
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': f'Invalid input: {e}'}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':

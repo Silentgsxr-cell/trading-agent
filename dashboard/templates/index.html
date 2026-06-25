@@ -893,6 +893,9 @@ const INIT = {
       <div class="nav-item" data-page="journal">
         <span class="nav-icon">☷</span><span>Journal</span>
       </div>
+      <div class="nav-item" data-page="backtest">
+        <span class="nav-icon">◷</span><span>Backtest</span>
+      </div>
       <div class="nav-item" data-page="settings">
         <span class="nav-icon">⚙</span><span>Settings</span>
       </div>
@@ -1565,6 +1568,121 @@ const INIT = {
 
 
       <!-- ─────────────────────────────────────────────────
+           PAGE: BACKTEST
+           ───────────────────────────────────────────────── -->
+      <div id="page-backtest" class="page">
+        <div class="page-header">
+          <div class="page-title">ORB Backtest — 15-Minute Range Simulator</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:280px 1fr;gap:12px;align-items:start;">
+          <div class="card">
+            <div class="card-title">Simulation Parameters</div>
+            <form id="bt-form" onsubmit="runBacktest(event)">
+              <div class="form-group" style="margin-bottom:8px;">
+                <label>Ticker</label>
+                <select id="bt-ticker">
+                  <option value="TSLA" selected>TSLA</option>
+                  <option value="QQQ">QQQ</option>
+                  <option value="MSFT">MSFT</option>
+                  <option value="AMZN">AMZN</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label>Trading Days <span id="bt-days-label" class="muted">(30)</span></label>
+                <input type="range" id="bt-days" min="5" max="42" value="30" step="1"
+                       style="width:100%;accent-color:var(--blue);"
+                       oninput="$('bt-days-label').textContent='('+this.value+')'">
+              </div>
+              <div class="form-row cols-2">
+                <div class="form-group">
+                  <label>Account ($)</label>
+                  <input type="number" id="bt-account" value="1000" step="50" min="100">
+                </div>
+                <div class="form-group">
+                  <label>Risk %</label>
+                  <input type="number" id="bt-risk" value="1.0" step="0.1" min="0.1" max="5">
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label>Target</label>
+                <select id="bt-target">
+                  <option value="2.0" selected>2R</option>
+                  <option value="1.5">1.5R</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-gain" style="width:100%;" id="bt-run-btn">Run Backtest</button>
+            </form>
+            <div id="bt-note" style="margin-top:10px;font-size:11px;color:var(--text-2);line-height:1.6;">
+              Uses 5-min TSLA bars from yfinance (max ~42 recent trading days). Takes ~5–10 s.
+            </div>
+          </div>
+
+          <div id="bt-results" class="hidden">
+            <!-- Stats chips -->
+            <div class="journal-stats" style="margin-bottom:12px;">
+              <div class="stat-chip">
+                <div class="sc-lbl">Trades</div>
+                <div class="sc-val mono" id="bt-s-total">—</div>
+              </div>
+              <div class="stat-chip">
+                <div class="sc-lbl">Win Rate</div>
+                <div class="sc-val mono" id="bt-s-wr">—</div>
+              </div>
+              <div class="stat-chip">
+                <div class="sc-lbl">Total P/L</div>
+                <div class="sc-val mono" id="bt-s-pnl">—</div>
+              </div>
+              <div class="stat-chip">
+                <div class="sc-lbl">Avg R</div>
+                <div class="sc-val mono" id="bt-s-avgr">—</div>
+              </div>
+              <div class="stat-chip">
+                <div class="sc-lbl">Best Trade</div>
+                <div class="sc-val mono gain" id="bt-s-best">—</div>
+              </div>
+              <div class="stat-chip">
+                <div class="sc-lbl">Worst Trade</div>
+                <div class="sc-val mono loss" id="bt-s-worst">—</div>
+              </div>
+            </div>
+
+            <!-- Trade table -->
+            <div class="card" style="overflow:hidden;">
+              <div class="card-title" style="margin-bottom:8px;">Trade-by-Trade Results</div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:11px;">
+                  <thead>
+                    <tr style="color:var(--text-2);border-bottom:1px solid var(--border);">
+                      <th style="padding:5px 8px;text-align:left;">Date</th>
+                      <th style="padding:5px 8px;text-align:left;">Dir</th>
+                      <th style="padding:5px 8px;text-align:right;">ORB H</th>
+                      <th style="padding:5px 8px;text-align:right;">ORB L</th>
+                      <th style="padding:5px 8px;text-align:right;">Entry</th>
+                      <th style="padding:5px 8px;text-align:right;">Stop</th>
+                      <th style="padding:5px 8px;text-align:right;">Target</th>
+                      <th style="padding:5px 8px;text-align:right;">Exit</th>
+                      <th style="padding:5px 8px;text-align:center;">In</th>
+                      <th style="padding:5px 8px;text-align:center;">Out</th>
+                      <th style="padding:5px 8px;text-align:center;">Result</th>
+                      <th style="padding:5px 8px;text-align:right;">R</th>
+                      <th style="padding:5px 8px;text-align:right;">P/L</th>
+                    </tr>
+                  </thead>
+                  <tbody id="bt-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="bt-empty" style="display:flex;align-items:center;justify-content:center;color:var(--text-2);font-size:13px;padding:40px;">
+            Configure parameters and click Run Backtest.
+          </div>
+        </div>
+      </div><!-- /page-backtest -->
+
+
+      <!-- ─────────────────────────────────────────────────
            PAGE: SETTINGS
            ───────────────────────────────────────────────── -->
       <div id="page-settings" class="page">
@@ -2080,6 +2198,87 @@ function renderJournalStats(s) {
   const pnl = s.total_pnl;
   $('js-pnl').textContent  = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
   $('js-pnl').className    = 'sc-val mono ' + (pnl >= 0 ? 'gain' : 'loss');
+}
+
+
+// ─── Backtest ─────────────────────────────────────────────────────────────────
+async function runBacktest(e) {
+  e.preventDefault();
+  const btn = $('bt-run-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running…';
+  $('bt-results').classList.add('hidden');
+  $('bt-empty').style.display = 'flex';
+  $('bt-empty').textContent = 'Downloading 5-min bars and simulating trades…';
+
+  const body = {
+    ticker:       $('bt-ticker').value,
+    days:         parseInt($('bt-days').value),
+    account_size: parseFloat($('bt-account').value),
+    risk_pct:     parseFloat($('bt-risk').value),
+    target_r:     parseFloat($('bt-target').value),
+  };
+
+  try {
+    const data = await postJSON('/api/backtest', body);
+    if (data.error) {
+      $('bt-empty').textContent = 'Error: ' + data.error;
+    } else {
+      renderBacktestResults(data);
+    }
+  } catch(err) {
+    $('bt-empty').textContent = 'Request failed: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Backtest';
+  }
+}
+
+function renderBacktestResults(data) {
+  const s = data.stats;
+  if (!s.total_trades) {
+    $('bt-empty').textContent = `No valid ORB setups found in ${s.days_scanned} days scanned.`;
+    return;
+  }
+
+  // Stats chips
+  const pnl = s.total_pnl;
+  $('bt-s-total').textContent  = s.total_trades + ' (' + s.wins + 'W / ' + s.losses + 'L)';
+  $('bt-s-wr').textContent     = s.win_rate + '%';
+  $('bt-s-wr').className       = 'sc-val mono ' + (s.win_rate >= 50 ? 'gain' : 'loss');
+  $('bt-s-pnl').textContent    = (pnl >= 0 ? '+$' : '-$') + Math.abs(pnl).toFixed(2);
+  $('bt-s-pnl').className      = 'sc-val mono ' + (pnl >= 0 ? 'gain' : 'loss');
+  $('bt-s-avgr').textContent   = (s.avg_r >= 0 ? '+' : '') + s.avg_r + 'R';
+  $('bt-s-avgr').className     = 'sc-val mono ' + (s.avg_r >= 0 ? 'gain' : 'loss');
+  $('bt-s-best').textContent   = '+$' + Math.abs(s.best_trade).toFixed(2);
+  $('bt-s-worst').textContent  = '-$' + Math.abs(s.worst_trade).toFixed(2);
+
+  // Trade table
+  const tbody = $('bt-tbody');
+  tbody.innerHTML = data.trades.map(t => {
+    const win = t.result.startsWith('Win');
+    const cls = win ? 'gain' : 'loss';
+    const pnlStr = (t.pnl >= 0 ? '+$' : '-$') + Math.abs(t.pnl).toFixed(2);
+    const dirCls = t.direction === 'Long' ? 'gain' : 'loss';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:4px 8px;">${t.date}</td>
+      <td style="padding:4px 8px;" class="${dirCls}">${t.direction === 'Long' ? '▲ L' : '▼ S'}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);">${t.orb_high}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);">${t.orb_low}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);">${t.entry}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);color:var(--loss);">${t.stop}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);color:#58a0ff;">${t.target}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);">${t.exit}</td>
+      <td style="padding:4px 8px;text-align:center;color:var(--text-2);">${t.entry_time}</td>
+      <td style="padding:4px 8px;text-align:center;color:var(--text-2);">${t.exit_time}</td>
+      <td style="padding:4px 8px;text-align:center;" class="${cls}">${t.result}</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);" class="${cls}">${t.r_multiple}R</td>
+      <td style="padding:4px 8px;text-align:right;font-family:var(--font-mono);" class="${cls}">${pnlStr}</td>
+    </tr>`;
+  }).join('');
+
+  $('bt-empty').style.display = 'none';
+  $('bt-results').classList.remove('hidden');
 }
 
 
