@@ -104,10 +104,54 @@ Current entries: 4 trades (2 closed, 2 open). Net P&L: -$887.15. Win rate: 50%.
 
 ---
 
+---
+
+### 8. Finance Tab — `mission-control/app/finance/`
+
+Full personal finance dashboard added to ClawOps Mission Control at `/finance`.
+
+**Sections:**
+
+**Net Worth Snapshot** — live-computed from accounts minus debts. Shows total assets, total debt, net worth in large monochrome type. Updates instantly on any edit.
+
+**Accounts** — one card per account (Webull $6k, Fidelity 401k $4k, Robinhood $50). Each card has an inline Edit Balance button — clicking opens an input in-place, saves on Enter or Save button, persists to `data/finance.json`.
+
+**Debt Tracker** — one panel per debt with a color-coded progress bar:
+- Red when >80% remaining
+- Amber when 50–80% remaining
+- Green when <50% remaining
+Each debt has editable current balance and original balance so the bar tracks paydown.
+
+**Monthly Budget** — 6 categories (Housing, Food, Transport, Trading/Investing, Debt Payments, Other). Each card shows spent vs budget, a progress bar (green → amber → red as budget fills), and two buttons: "Set Budget" (set monthly amount) and "+ Spend" (add a transaction to the spent total). Budget and spend persist to `data/finance.json`.
+
+**Trading P&L** — read-only panel sourced from `data/journal.csv`. Shows Today / This Week / This Month / All Time P&L with trade counts. No manual input — purely derived from journal entries.
+
+**Files created:**
+- `lib/finance.ts` — types (`FinanceData`, `Account`, `Debt`, `BudgetCategory`) + `getFinance()` reader
+- `app/finance/actions.ts` — Server Action: `saveFinanceAction(data)` → writes finance.json, calls `revalidatePath('/finance')`
+- `app/finance/FinanceEditor.tsx` — client component, manages all inline editing via `useState` + `useTransition` for optimistic updates
+- `app/finance/page.tsx` — server component shell: reads finance + journal, computes P&L periods, passes to editor
+- `data/finance.json` — persisted finance data (survives server restarts)
+- `lib/config.ts` — added `financeJson` path to PATHS
+- `components/Sidebar.tsx` — added Finance nav item (`$` glyph)
+
+**Confirmed working:** Finance tab renders at localhost:3000/finance. Inline editing saves to disk (Transport budget set to $130 / $65 spent in first live session).
+
+---
+
+### 9. Session Infrastructure Fixes
+
+- **state/session.json** — created with default zero state so Mission Control engine shows **ONLINE**
+- **GitHub** — all work pushed to `Silentgsxr-cell/trading-agent` on `master`
+- **HANDOFF.md** — fully rewritten to reflect ClawOps (old file described the original HTML sim)
+
+---
+
 ## What's Next (Phase 2)
 
-- [ ] Python runner that writes `state/session.json` and `state/decisions.jsonl` in real time
-- [ ] `strategist.py` — strike selection agent
-- [ ] Live signal loop: data_agent → signal_agent → risk_engine → execution_agent
-- [ ] Broker integration (paper trading first via IBKR or Alpaca)
-- [ ] `state/signals.jsonl` feed powering the Mission Control logs page
+- [ ] `runner.py` — Python runner that writes `state/session.json` + `state/decisions.jsonl` in real time, driving the Mission Control logs page
+- [ ] `agents/signal_agent.py` — Real ORB signal detection (currently `NotImplementedError` stub)
+- [ ] `agents/execution_agent.py` — Paper order execution (currently `NotImplementedError` stub)
+- [ ] `agents/strategist.py` — Strike selection agent (not yet created)
+- [ ] Broker integration — paper trading first via Alpaca or IBKR
+- [ ] Finance tab: monthly budget reset, historical month-over-month budget tracking
