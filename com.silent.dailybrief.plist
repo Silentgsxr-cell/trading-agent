@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.silent.dailybrief</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/daily_brief.py</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>6</integer>
+        <key>Minute</key>
+        <integer>20</integer>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/silent/Desktop/silent graph/trading-agent 2</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/silent</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>PYTHONPATH</key>
+        <string>/Users/silent/Library/Python/3.9/lib/python/site-packages</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/daily_brief.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/daily_brief_error.log</string>
+
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
