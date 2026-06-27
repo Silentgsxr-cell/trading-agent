@@ -38,6 +38,8 @@ from agents.strategies import EvalContext
 from agents.risk_engine import RiskEngine
 from config import risk_config as cfg
 from config import strategy_config as scfg
+import utils.state_manager as state_mgr
+from utils.event_log import log_event
 
 _ET = ZoneInfo("America/New_York")
 
@@ -81,12 +83,12 @@ def _is_pre_market(now: datetime) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# State writers
+# State writers — all writes go through shared utils (filelock protected)
 # ---------------------------------------------------------------------------
 
 def write_session(engine: RiskEngine) -> None:
     s = engine.session
-    payload = {
+    state_mgr.update_session({
         "date":              s.date,
         "startingBalance":   s.starting_balance,
         "currentBalance":    round(s.current_balance, 2),
@@ -96,32 +98,18 @@ def write_session(engine: RiskEngine) -> None:
         "haltReason":        s.halt_reason,
         "openPositions":     len(s.open_positions),
         "tradesToday":       s.trades_opened_today,
-    }
-    tmp = SESSION_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(payload, indent=2))
-    tmp.replace(SESSION_FILE)
-
-
-def _append_jsonl(path: Path, obj: dict) -> None:
-    with open(path, "a") as f:
-        f.write(json.dumps(obj) + "\n")
+    })
 
 
 def log_decision(kind: str, agent: str, message: str, meta: Optional[dict] = None) -> None:
-    event: dict = {
-        "ts":      _now_et().isoformat(),
-        "kind":    kind,
-        "agent":   agent,
-        "message": message,
-    }
-    if meta:
-        event["meta"] = meta
-    _append_jsonl(DECISIONS_FILE, event)
+    log_event(kind=kind, agent=agent, message=message, meta=meta)
     print(f"[{agent:16s}] {kind.upper():8s}  {message}")
 
 
 def log_signal(ranked: RankedSignal) -> None:
-    _append_jsonl(SIGNALS_FILE, ranked.to_dict())
+    import json as _json
+    with open(SIGNALS_FILE, "a") as f:
+        f.write(_json.dumps(ranked.to_dict()) + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +173,7 @@ def run() -> None:
     engine.session.date = session_date
     signaos = Signaos()
 
-    write_session(engine)
+    state_mgr.reset_session(cfg.STARTING_BALANCE)
     log_decision("info", "runner", f"HAWK + ClawOps runner started — {SYMBOL}", {
         "balance": cfg.STARTING_BALANCE,
         "date":    session_date,
@@ -228,6 +216,7 @@ def run() -> None:
         if not _is_market_open(now):
             status = "PRE-MARKET" if _is_pre_market(now) else "CLOSED"
             print(f"[runner           ] {status} {now.strftime('%H:%M ET')} — sleeping {POLL_INTERVAL}s")
+            state_mgr.heartbeat()
             time.sleep(POLL_INTERVAL)
             continue
 
@@ -322,6 +311,7 @@ def run() -> None:
 
     log_decision("info", "runner", "Runner stopped (clean shutdown)")
     write_session(engine)
+    state_mgr.set_offline()
     print("[runner           ] Stopped.")
 
 

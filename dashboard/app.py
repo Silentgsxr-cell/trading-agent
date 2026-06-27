@@ -36,6 +36,7 @@ import agent.notifier as notify
 from agents.risk_engine import RiskEngine
 from config import risk_config as cfg
 from agent.backtester      import run_backtest
+import utils.state_manager as state_mgr
 
 app = Flask(__name__, template_folder='templates')
 
@@ -188,10 +189,29 @@ def api_sparkline():
         return jsonify({'error': str(e)}), 500
 
 
-# ─── System / Risk Engine Status ─────────────────────────────────────────────
+# ─── System / VAULT Status ────────────────────────────────────────────────────
 
 @app.route('/api/status')
 def api_status():
+    # Prefer runner state (state_manager) when runner is online; fall back to
+    # the in-process engine so the Flask terminal works standalone too.
+    shared = state_mgr.get_session()
+    runner_online = shared.get("runnerOnline", False)
+    if runner_online:
+        return jsonify({
+            'halted':              shared.get('halted', False),
+            'halt_reason':         shared.get('haltReason'),
+            'trades_opened_today': shared.get('tradesToday', 0),
+            'trades_remaining':    max(0, cfg.MAX_TRADES_PER_DAY - shared.get('tradesToday', 0)),
+            'consecutive_losses':  shared.get('consecutiveLosses', 0),
+            'daily_pnl':           shared.get('dailyPnl', 0.0),
+            'open_positions':      shared.get('openPositions', 0),
+            'max_trades':          cfg.MAX_TRADES_PER_DAY,
+            'max_daily_loss_pct':  cfg.DAILY_MAX_LOSS_PCT * 100,
+            'cooldown_threshold':  cfg.CONSECUTIVE_LOSS_COOLDOWN,
+            'source':              'runner',
+        })
+    # Runner offline — fall back to in-process engine (Flask terminal standalone mode)
     s = _engine.session
     return jsonify({
         'halted':              s.halted,
@@ -204,12 +224,14 @@ def api_status():
         'max_trades':          cfg.MAX_TRADES_PER_DAY,
         'max_daily_loss_pct':  cfg.DAILY_MAX_LOSS_PCT * 100,
         'cooldown_threshold':  cfg.CONSECUTIVE_LOSS_COOLDOWN,
+        'source':              'flask',
     })
 
 
 @app.route('/api/status/halt', methods=['POST'])
 def api_status_halt():
     _engine._halt("manual kill switch")
+    state_mgr.halt_session("manual kill switch")
     notify.session_halted("manual kill switch")
     return jsonify({'success': True, 'message': 'Session halted.'})
 
@@ -218,6 +240,7 @@ def api_status_halt():
 def api_status_reset():
     global _engine
     _engine = RiskEngine()
+    state_mgr.reset_session(cfg.STARTING_BALANCE)
     notify.session_reset()
     return jsonify({'success': True, 'message': 'Session reset — new trading day.'})
 
