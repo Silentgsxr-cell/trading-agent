@@ -9,11 +9,11 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/suggestion_agent.py</string>
+    <string>/Users/silent/trading-agent 2/utils/suggestion_agent.py</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/silent/Desktop/silent graph/trading-agent 2</string>
+  <string>/Users/silent/trading-agent 2</string>
 
   <!-- 5:00 AM and 5:30 PM Arizona MST (UTC-7 year-round, no DST) -->
   <key>StartCalendarInterval</key>
@@ -35,10 +35,10 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/suggestion_agent.log</string>
+  <string>/Users/silent/trading-agent 2/logs/suggestion_agent.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/suggestion_agent_error.log</string>
+  <string>/Users/silent/trading-agent 2/logs/suggestion_agent_error.log</string>
 
   <key>Nice</key>
   <integer>10</integer>

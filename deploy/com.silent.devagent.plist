@@ -9,11 +9,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/Library/Developer/CommandLineTools/usr/bin/python3</string>
-        <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/dev_agent.py</string>
+        <string>/Users/silent/trading-agent 2/utils/dev_agent.py</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2</string>
+    <string>/Users/silent/trading-agent 2</string>
 
     <!--
       Run at 5:00 AM and 5:30 PM Arizona MST (UTC-7, no daylight saving).
@@ -38,9 +38,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dev_agent.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dev_agent.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dev_agent.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dev_agent.log</string>
 
     <!-- Low priority — never compete with runner.py -->
     <key>Nice</key>

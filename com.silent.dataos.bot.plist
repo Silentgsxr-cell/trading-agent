@@ -7,10 +7,10 @@
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/silent/Desktop/silent graph/trading-agent 2/utils/daitaos_bot.py</string>
+        <string>/Users/silent/trading-agent 2/utils/daitaos_bot.py</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2</string>
+    <string>/Users/silent/trading-agent 2</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>HOME</key>
@@ -27,8 +27,8 @@
     <key>ThrottleInterval</key>
     <integer>30</integer>
     <key>StandardOutPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dataos_bot.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dataos_bot.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 2/logs/dataos_bot_error.log</string>
+    <string>/Users/silent/trading-agent 2/logs/dataos_bot_error.log</string>
 </dict>
 </plist>
