@@ -53,19 +53,30 @@ function parseAppleDate(s: string): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const WEEKDAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
 function isoDay(d: Date): string {
-  return d.toLocaleDateString("en-CA"); // YYYY-MM-DD in local time
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function dayLabel(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const [y, mo, da] = iso.split("-").map(Number);
+  const d = new Date(y, mo - 1, da);
+  return `${WEEKDAYS[d.getDay()]}, ${MONTHS[mo - 1]} ${da}`;
 }
 
 function fmtTime(s: string): string {
   const d = parseAppleDate(s);
   if (!d) return s;
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const h = d.getHours();
+  const min = String(d.getMinutes()).padStart(2, "0");
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  return `${h12}:${min} ${ampm}`;
 }
 
 function groupByDay(events: CalEvent[]): Map<string, CalEvent[]> {
