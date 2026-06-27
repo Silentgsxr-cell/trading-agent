@@ -7,3 +7,11 @@ __pycache__/
 .venv/
 venv/
 logs/*.log
+logs/*.md
+
+# Runtime state — written constantly by runner and watchdog, not committed
+state/session.json
+state/decisions.jsonl
+state/signals.jsonl
+state/decisions.lock
+state/session.lock

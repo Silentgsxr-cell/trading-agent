@@ -8,9 +8,16 @@
       "what_to_complete": "Add nickname badge component to AgentCard.tsx",
       "what_done_looks_like": "Each card shows nickname badge matching agent color, visible on both front and back of flip card",
       "connectors_needed": [],
-      "restrictions": ["Do not modify agents/ or config/"],
-      "allowed_paths": ["mission-control/components/AgentCard.tsx"],
-      "blocked_paths": ["agents/", "config/"],
+      "restrictions": [
+        "Do not modify agents/ or config/"
+      ],
+      "allowed_paths": [
+        "mission-control/components/AgentCard.tsx"
+      ],
+      "blocked_paths": [
+        "agents/",
+        "config/"
+      ],
       "priority": "medium",
       "complexity": "simple",
       "complexity_color": "#00e676",
@@ -26,7 +33,10 @@
       "agent_summary": "",
       "approval_gate": "auto",
       "smoke_test_passed": null,
-      "log": []
+      "log": [
+        "[2026-06-26 20:42:42 AZ] SAFETY BLOCKED: BLOCKED \u2014 watchdog.py is not running",
+        "[2026-06-26 20:51:38 AZ] SAFETY BLOCKED: BLOCKED \u2014 dirty working tree (M data/finance.json\n M data/tickets.json\n M logs/2026-06-26.md\n M state/session.). Commit or stash first."
+      ]
     }
   ]
 }
