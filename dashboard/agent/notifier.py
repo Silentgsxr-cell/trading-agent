@@ -84,13 +84,13 @@ def risk_decision(approved: bool, reason: str = "",
                   quantity: int = 0, dollar_risk: float = 0.0):
     if approved:
         _send(_embed(
-            title="✅ Risk Engine — APPROVED",
+            title="✅ VAULT — APPROVED",
             description=f"{quantity} contract(s) · **${dollar_risk:.2f}** at risk",
             color="green",
         ))
     else:
         _send(_embed(
-            title="🚫 Risk Engine — REJECTED",
+            title="🚫 VAULT — REJECTED",
             description=reason,
             color="red",
         ))

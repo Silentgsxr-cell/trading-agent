@@ -186,7 +186,7 @@ def run() -> None:
     signaos = Signaos()
 
     write_session(engine)
-    log_decision("info", "runner", f"Signaos + ClawOps runner started — {SYMBOL}", {
+    log_decision("info", "runner", f"HAWK + ClawOps runner started — {SYMBOL}", {
         "balance": cfg.STARTING_BALANCE,
         "date":    session_date,
         "strategies": [s.name for s in signaos.strategies],
@@ -263,16 +263,16 @@ def run() -> None:
             sig = ranked.signal
             log_signal(ranked)
             log_decision(
-                "signal", f"signaos/{sig.strategy_name}",
+                "signal", f"hawk/{sig.strategy_name}",
                 f"[{ranked.conviction_tier}] {sig.direction.upper()} {sig.ticker} — "
                 f"{sig.reasoning[:80]}",
                 ranked.to_dict(),
             )
 
-            # Only route A and S tier to Risk Engine for sizing/approval.
+            # Only route A and S tier to VAULT for sizing/approval.
             if ranked.conviction_tier not in ("S", "A"):
                 log_decision(
-                    "info", "signaos",
+                    "info", "hawk",
                     f"[{ranked.conviction_tier}] signal logged but not routed "
                     f"(below A tier, score={ranked.final_score})",
                 )
@@ -284,7 +284,7 @@ def run() -> None:
 
             if result["approved"]:
                 log_decision(
-                    "approved", "risk_engine",
+                    "approved", "vault",
                     f"APPROVED — {result['quantity']} contract(s) "
                     f"@ ${placeholder_premium:.2f} premium, "
                     f"risk ${result['dollar_risk']:.2f}, "
@@ -293,7 +293,7 @@ def run() -> None:
                 )
             else:
                 log_decision(
-                    "rejected", "risk_engine",
+                    "rejected", "vault",
                     f"REJECTED — {result['reason']}",
                     result,
                 )
@@ -303,7 +303,7 @@ def run() -> None:
         # Time-based force-close guard.
         if engine.check_force_close(now) and engine.session.open_positions:
             log_decision(
-                "halt", "risk_engine",
+                "halt", "vault",
                 "Force-close window reached — all open positions must be closed",
             )
 

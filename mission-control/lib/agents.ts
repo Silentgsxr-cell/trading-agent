@@ -13,7 +13,7 @@ export interface AgentCard {
   file: string;
   status: AgentStatus;
   ring: Ring;
-  governor: boolean; // Risk Engine + Mission Control act as governors
+  governor: boolean; // VAULT acts as governor — final veto on every trade
   summary: string;
   blockers: string[]; // parsed TODO / pending lines
   lines: number;
@@ -24,16 +24,16 @@ export interface AgentCard {
 const CREW: Omit<AgentCard, "status" | "blockers" | "lines">[] = [
   {
     id: "signal",
-    name: "Signaos",
+    name: "HAWK",
     role: "Multi-strategy signal framework",
     file: "signaos.py",
     ring: "core",
     governor: false,
-    summary: "Runs all enabled strategies, scores and ranks signals (S/A/B/C), routes A+ to Risk Engine. Never sizes or orders.",
+    summary: "Runs all enabled strategies, scores and ranks signals (S/A/B/C), routes A+ to VAULT. Never sizes or orders.",
   },
   {
     id: "risk",
-    name: "Risk Engine",
+    name: "VAULT",
     role: "Deterministic veto · sizing · circuit breakers",
     file: "risk_engine.py",
     ring: "core",
@@ -60,16 +60,16 @@ const CREW: Omit<AgentCard, "status" | "blockers" | "lines">[] = [
   },
   {
     id: "execution",
-    name: "Execution Agent",
+    name: "TRIGGER",
     role: "Order submission (paper-first)",
     file: "execution_agent.py",
     ring: "execution",
     governor: false,
-    summary: "The only agent allowed to place/modify/cancel orders. Rejects un-approved trades.",
+    summary: "The only agent allowed to place/modify/cancel orders. Rejects trades not approved by VAULT.",
   },
   {
     id: "review",
-    name: "Review Agent",
+    name: "LEDGER",
     role: "Journal · expectancy · edge-decay",
     file: "review_agent.py",
     ring: "news",
