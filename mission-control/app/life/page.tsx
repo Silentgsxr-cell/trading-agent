@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 
-const FLASK = process.env.NEXT_PUBLIC_FLASK_URL ?? "http://localhost:5000";
+const FLASK = "";
 
 // ═══════════════════════════════════════════════════════════════ TYPES ══════
 
@@ -750,8 +750,8 @@ export default function LifePage() {
     (async () => {
       const [g, e, t, f] = await Promise.allSettled([
         fetch(`${FLASK}/api/life/goals`).then(r => r.json()),
-        fetch(`${FLASK}/api/calendar`).then(r => r.json()),
-        fetch(`${FLASK}/api/tasks`).then(r => r.json()),
+        fetch(`${FLASK}/api/life/calendar`).then(r => r.json()),
+        fetch(`${FLASK}/api/life/tasks`).then(r => r.json()),
         fetch(`${FLASK}/api/life/finance`).then(r => r.json()),
       ]);
       if (!ok) return;
@@ -784,7 +784,7 @@ export default function LifePage() {
 
   // ── Tasks
   async function addTask(t: Partial<Task>) {
-    const r = await fetch(`${FLASK}/api/tasks`, {
+    const r = await fetch(`${FLASK}/api/life/tasks`, {
       method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(t),
     });
     const d = await r.json();
@@ -792,23 +792,23 @@ export default function LifePage() {
   }
   async function updateTask(id: string, patch: Partial<Task>) {
     setTasks(p => p.map(t => t.id===id ? {...t,...patch} : t));
-    await fetch(`${FLASK}/api/tasks/${id}`, {
+    await fetch(`${FLASK}/api/life/tasks/${encodeURIComponent(id)}`, {
       method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(patch),
     });
   }
   async function deleteTask(id: string) {
     setTasks(p => p.filter(t => t.id!==id));
-    await fetch(`${FLASK}/api/tasks/${id}`, { method:"DELETE" });
+    await fetch(`${FLASK}/api/life/tasks/${encodeURIComponent(id)}`, { method:"DELETE" });
   }
 
   // ── Calendar
   async function addCalEvent(data: { type:string; title:string; time:string; endTime:string; date:string }) {
-    const r = await fetch(`${FLASK}/api/calendar/event`, {
+    const r = await fetch(`${FLASK}/api/life/calendar/event`, {
       method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data),
     });
     const d = await r.json();
     if (!d.success) throw new Error(d.error || "Failed");
-    const fresh = await fetch(`${FLASK}/api/calendar`).then(r => r.json());
+    const fresh = await fetch(`${FLASK}/api/life/calendar`).then(r => r.json());
     setEvents(fresh.events ?? []);
   }
 

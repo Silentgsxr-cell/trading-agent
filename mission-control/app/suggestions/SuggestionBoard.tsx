@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const FLASK = process.env.NEXT_PUBLIC_FLASK_URL ?? "http://localhost:5000";
+const FLASK = "";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

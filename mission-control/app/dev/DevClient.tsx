@@ -517,7 +517,7 @@ export function DevClient({ db }: { db: TicketDB }) {
   const [paused, setPaused] = useState(db.paused);
   const [toast, setToast] = useState("");
 
-  const FLASK = process.env.NEXT_PUBLIC_FLASK_URL ?? "http://localhost:5000";
+  const FLASK = "";
 
   useEffect(() => {
     let mounted = true;

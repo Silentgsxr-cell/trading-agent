@@ -1,0 +1,111 @@
+{
+  "tab_counts": {
+    "chief": 4,
+    "dev_queue": 2,
+    "system": 2,
+    "life": 3,
+    "intelligence": 2,
+    "logs": 2,
+    "risk": 2,
+    "signals": 1,
+    "markets": 1
+  },
+  "last_updated": "2026-06-27T15:12:23.935499",
+  "sessions": [
+    {
+      "tab": "chief",
+      "timestamp": "2026-06-27T22:01:17.023Z",
+      "duration_ms": 4
+    },
+    {
+      "tab": "chief",
+      "timestamp": "2026-06-27T22:01:17.027Z",
+      "duration_ms": 12095
+    },
+    {
+      "tab": "dev_queue",
+      "timestamp": "2026-06-27T22:01:29.122Z",
+      "duration_ms": 79891
+    },
+    {
+      "tab": "system",
+      "timestamp": "2026-06-27T22:02:49.013Z",
+      "duration_ms": 866
+    },
+    {
+      "tab": "life",
+      "timestamp": "2026-06-27T22:02:49.879Z",
+      "duration_ms": 33631
+    },
+    {
+      "tab": "chief",
+      "timestamp": "2026-06-27T22:03:23.510Z",
+      "duration_ms": 521155
+    },
+    {
+      "tab": "dev_queue",
+      "timestamp": "2026-06-27T22:12:04.665Z",
+      "duration_ms": 792
+    },
+    {
+      "tab": "life",
+      "timestamp": "2026-06-27T22:12:05.457Z",
+      "duration_ms": 1321
+    },
+    {
+      "tab": "intelligence",
+      "timestamp": "2026-06-27T22:12:06.778Z",
+      "duration_ms": 2301
+    },
+    {
+      "tab": "logs",
+      "timestamp": "2026-06-27T22:12:09.079Z",
+      "duration_ms": 639
+    },
+    {
+      "tab": "risk",
+      "timestamp": "2026-06-27T22:12:09.718Z",
+      "duration_ms": 897
+    },
+    {
+      "tab": "system",
+      "timestamp": "2026-06-27T22:12:10.615Z",
+      "duration_ms": 776
+    },
+    {
+      "tab": "life",
+      "timestamp": "2026-06-27T22:12:11.391Z",
+      "duration_ms": 1027
+    },
+    {
+      "tab": "intelligence",
+      "timestamp": "2026-06-27T22:12:12.418Z",
+      "duration_ms": 767
+    },
+    {
+      "tab": "logs",
+      "timestamp": "2026-06-27T22:12:13.185Z",
+      "duration_ms": 909
+    },
+    {
+      "tab": "signals",
+      "timestamp": "2026-06-27T22:12:14.094Z",
+      "duration_ms": 623
+    },
+    {
+      "tab": "risk",
+      "timestamp": "2026-06-27T22:12:14.717Z",
+      "duration_ms": 797
+    },
+    {
+      "tab": "markets",
+      "timestamp": "2026-06-27T22:12:15.514Z",
+      "duration_ms": 1721
+    },
+    {
+      "tab": "chief",
+      "timestamp": "2026-06-27T22:12:17.235Z",
+      "duration_ms": 6684
+    }
+  ]
+}
