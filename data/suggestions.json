@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "id": "SUG-001",
+    "agent_id": "VAULT",
+    "agent_color": "#c02a44",
+    "agent_avatar": "shield",
+    "title": "Consecutive loss pattern \u2014 2 in a row",
+    "reasoning": "VAULT recorded 2 consecutive losses this session. Cooldown may engage soon. Review setup quality.",
+    "category": "Trading",
+    "priority": 7,
+    "flags": [
+      "time_sensitive"
+    ],
+    "flag_emojis": "\u23f0",
+    "affected_files": [],
+    "has_locked_files": false,
+    "status": "open",
+    "queue": null,
+    "completed_by": null,
+    "archive_reason": "",
+    "progress_pct": 0,
+    "dev_ticket_id": null,
+    "user_edits": "",
+    "created_at": "2026-06-27T00:11:46.429773",
+    "updated_at": "2026-06-27T00:11:46.429774",
+    "archived_at": null,
+    "discord_posted": false,
+    "cycle_id": "VAULT-2026-06-27"
+  },
+  {
+    "id": "SUG-002",
+    "agent_id": "VAULT",
+    "agent_color": "#c02a44",
+    "agent_avatar": "shield",
+    "title": "Consecutive loss pattern \u2014 2 in a row",
+    "reasoning": "VAULT recorded 2 consecutive losses this session. Cooldown may engage soon. Review setup quality.",
+    "category": "Trading",
+    "priority": 7,
+    "flags": [
+      "time_sensitive"
+    ],
+    "flag_emojis": "\u23f0",
+    "affected_files": [],
+    "has_locked_files": false,
+    "status": "open",
+    "queue": null,
+    "completed_by": null,
+    "archive_reason": "",
+    "progress_pct": 0,
+    "dev_ticket_id": null,
+    "user_edits": "",
+    "created_at": "2026-06-27T00:14:06.154856",
+    "updated_at": "2026-06-27T00:14:06.154858",
+    "archived_at": null,
+    "discord_posted": false,
+    "cycle_id": "VAULT-2026-06-27"
+  }
+]
