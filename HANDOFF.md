@@ -6,10 +6,8 @@ Drop this into a new Claude session to restore full context instantly.
 ## Project location
 
 ```
-/Users/silent/trading-agent 2/
+/Users/silent/Desktop/silent graph/trading-agent 2/
 ```
-
-**NOT** `~/Desktop/silent graph/trading-agent 2/` — the project lives directly in the home directory.
 
 ---
 
@@ -17,7 +15,7 @@ Drop this into a new Claude session to restore full context instantly.
 
 ```
 Project: ClawOps — Silent's ORB paper trading system with multi-agent architecture.
-Location: /Users/silent/trading-agent 2/
+Location: /Users/silent/Desktop/silent graph/trading-agent 2/
 
 REPO: https://github.com/Silentgsxr-cell/trading-agent  (branch: master)
 
@@ -26,13 +24,14 @@ TWO LIVE DASHBOARDS:
   ClawOps Mission Control → localhost:3000  (cd mission-control && npm run dev)
 
 STARTUP:
-  cd "/Users/silent/trading-agent 2" && python3 dashboard/app.py
-  cd "/Users/silent/trading-agent 2/mission-control" && npm run dev
+  cd "/Users/silent/Desktop/silent graph/trading-agent 2" && python3 dashboard/app.py
+  cd "/Users/silent/Desktop/silent graph/trading-agent 2/mission-control" && npm run dev
 
 NOTE: macOS AirPlay Receiver must be OFF (System Settings → General → AirDrop & Handoff)
 or it intercepts port 5000 and Flask returns a blank page.
 
 BACKGROUND PROCESSES (start manually each session):
+  cd "/Users/silent/Desktop/silent graph/trading-agent 2"
   python3 utils/watchdog.py &       # security + integrity monitor
   python3 utils/daitaos_bot.py      # Discord bot (!brief, !status, etc.)
   python3 utils/dev_agent.py        # autonomous dev agent (needs Anthropic credits)
@@ -133,20 +132,20 @@ launchctl load ~/Library/LaunchAgents/com.silent.suggestion.plist
 - **TICKET-001 queued** — status: open, ready to run once credits added
 - **To run live:**
   ```
-  cd "/Users/silent/trading-agent 2"
+  cd "/Users/silent/Desktop/silent graph/trading-agent 2"
   python3 utils/watchdog.py &
   sleep 2
   python3 utils/dev_agent.py
   ```
 
 ### Anthropic API key
-- Fresh key is in `/Users/silent/trading-agent 2/.env` as `ANTHROPIC_API_KEY`
+- Fresh key is in `/Users/silent/Desktop/silent graph/trading-agent 2/.env` as `ANTHROPIC_API_KEY`
 - Account needs credits at `console.anthropic.com` → Plans & Billing
 - Key was set via terminal (not pasted in chat) — safe
 
 ### .env location
 ```
-/Users/silent/trading-agent 2/.env
+/Users/silent/Desktop/silent graph/trading-agent 2/.env
 ```
 Contains: DISCORD_WEBHOOK_URL, DISCORD_BOT_TOKEN, ANTHROPIC_API_KEY
 Never committed to git. Watchdog checks this every cycle.
@@ -175,7 +174,7 @@ Never committed to git. Watchdog checks this every cycle.
 ## Project structure
 
 ```
-/Users/silent/trading-agent 2/
+/Users/silent/Desktop/silent graph/trading-agent 2/
 ├── runner.py                  # autonomous trading loop (run in terminal)
 ├── agents/
 │   ├── signaos.py             # HAWK — signal engine (ORB live)
