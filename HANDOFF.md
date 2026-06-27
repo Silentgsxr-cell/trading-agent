@@ -44,10 +44,12 @@ BACKGROUND PROCESSES (start manually each session):
 
 ### Core trading system
 - `runner.py` — autonomous ORB loop, weekdays 9:30–16:00 ET, polls yfinance every 30s
-- `agents/signaos.py` — HAWK signal engine, 6-strategy registry (ORB live, 5 stubs)
-- `agents/risk_engine.py` — VAULT, circuit breakers, position sizing
-- `agents/dataos.py` — DataOS stub (interface only, no live data yet)
-- `agents/daitaos.py` — DaiTaos crew registration
+- `agents/signaos.py` — **HAWK** signal engine, 6-strategy registry (ORB live, 5 stubs)
+- `agents/risk_engine.py` — **VAULT**, circuit breakers, position sizing
+- `agents/dataos.py` — **PULSE** (was DataOS), market intelligence stub
+- `utils/daitaos.py` — **INTEL** (was DaiTaos), daily brief + Discord bot
+- `utils/watchdog.py` — **WATCH** (was Watchdog), security monitor
+- `utils/suggestion_agent.py` — **SAGE** (was Suggestion Agent), twice-daily advisor
 - `config/risk_config.py` — max 3 trades/day, 1% risk/trade, 3% daily loss limit
 
 ### Single-writer rule (all shared files serialized via filelock)
@@ -72,13 +74,27 @@ BACKGROUND PROCESSES (start manually each session):
 - `mission-control/` — Next.js 14, pages: Cockpit, Logs, Intelligence, Research, Finance, Dev Queue
 
 ### Discord
-- `utils/daitaos.py` — 9-section morning brief (incl. dev agent overnight summary)
+- `utils/daitaos.py` — **INTEL**: 9-section morning brief (incl. dev agent overnight summary)
 - `utils/daitaos_bot.py` — bot: !brief, !tsla, !watchlist, !status, !rules, !pnl,
   !config, !ticket status/pause/resume/log, !approve, !revert, !help
 
 ---
 
-## Current state — session ended 2026-06-26
+## Current state — session 2026-06-27
+
+### Phase 2 — Agent Canonical Renames ✅ COMPLETE
+
+| Old Name | Canonical | File (unchanged) |
+|---|---|---|
+| DataOS | PULSE | `agents/dataos.py` |
+| DaiTaos | INTEL | `utils/daitaos.py` |
+| Watchdog | WATCH | `utils/watchdog.py` |
+| Suggestion Agent | SAGE | `utils/suggestion_agent.py` |
+| _(new)_ | CHIEF | not yet built |
+
+Updated: `lib/agents.ts` (names + WATCH/SAGE/CHIEF entries), `utils/agent_brain.py` (AGENT_AVATARS), docs.
+
+---
 
 ### Suggestion Intelligence Layer — ✅ COMPLETE (all 10 steps)
 

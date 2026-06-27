@@ -54,14 +54,21 @@ FLAG_EMOJIS = {
 }
 
 # Agent avatar names (used in UI for avatar selection)
+# Canonical names (Phase 2) + legacy aliases for backward compat
 AGENT_AVATARS = {
     "VAULT":     "shield",
     "HAWK":      "radar",
-    "DATAOS":    "database",
+    "PULSE":     "database",
+    "DATAOS":    "database",   # legacy alias → PULSE
+    "INTEL":     "satellite",
+    "DAITAOS":   "satellite",  # legacy alias → INTEL
     "TRIGGER":   "bolt",
     "LEDGER":    "book",
-    "WATCHDOG":  "eye",
+    "WATCH":     "eye",
+    "WATCHDOG":  "eye",        # legacy alias → WATCH
     "DEV_AGENT": "code",
+    "SAGE":      "star",
+    "CHIEF":     "command",
 }
 
 logging.basicConfig(level=logging.WARNING)

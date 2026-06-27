@@ -9,15 +9,18 @@ Last updated: 2026-06-26
 
 Six v2 agents structured around a strict ring hierarchy:
 
-| Agent | Canonical Name | Ring | Role |
+| File | Canonical Name | Ring | Role |
 |---|---|---|---|
 | `signaos.py` | HAWK | Core | Multi-strategy signal engine (ORB live, 5 stubs) |
 | `risk_engine.py` | VAULT | Core | Deterministic veto, position sizing, circuit breakers |
-| `dataos.py` | DataOS | Macro | Market data stub — bars, VWAP, session levels, options chain |
-| `daitaos.py` | DaiTaos | News | Daily intelligence crew registration |
+| `dataos.py` | **PULSE** | Macro | Market intelligence — bars, VWAP, session levels, options chain |
+| `daitaos.py` | **INTEL** | News | Daily intelligence brief, Discord bot |
 | `review_agent.py` | LEDGER | News | Daily journal feedback loop, edge-decay tracking |
 | `execution_agent.py` | TRIGGER | Execution | Order submission — paper-first, only agent allowed to place orders |
 | `strategist.py` | Strategist | Execution | Strike selection — not yet built |
+| `utils/watchdog.py` | **WATCH** | Core | Security monitor, 7 checks every 60s |
+| `utils/suggestion_agent.py` | **SAGE** | News | Suggestion intelligence, twice-daily Claude API cycle |
+| `chief.py` | **CHIEF** | Core | Chief of Staff — orchestrator (not yet built) |
 
 VAULT is the only agent with veto power. HAWK never sizes or orders. TRIGGER rejects anything not approved by VAULT.
 
@@ -160,7 +163,7 @@ All shared file writes serialized through filelock-protected utils:
 
 ---
 
-### 12. DaiTaos — Daily Intelligence + Discord Bot
+### 12. INTEL (DaiTaos) — Daily Intelligence + Discord Bot
 
 `utils/daitaos.py` — 9-section morning brief sent to Discord webhook:
 1. Date & market status
@@ -185,7 +188,7 @@ LaunchAgents: `com.silent.dataos.plist`, `com.silent.dataos.bot.plist`, `com.sil
 
 ---
 
-### 13. Security Watchdog — `utils/watchdog.py`
+### 13. WATCH (Security Watchdog) — `utils/watchdog.py`
 
 Background process, checks every 60 seconds. Start: `python3 utils/watchdog.py &`
 
@@ -210,7 +213,7 @@ launchctl load ~/Library/LaunchAgents/com.silent.watchdog.plist
 
 ---
 
-### 14. Dev Agent System — `utils/dev_agent.py`
+### 14. DEV Agent System — `utils/dev_agent.py`
 
 Autonomous agent that picks up tickets from `data/tickets.json`, calls Claude API,
 writes code, tests, commits, and merges — fully unattended.
@@ -372,6 +375,33 @@ All hooks wrapped in `try/except` — brain failure never breaks agent logic.
 - `npm run build` — all 10 routes compile clean, `/suggestions` at 6.41 kB, zero TypeScript errors
 - `docs/PROGRESS.md` updated — section 17 marked complete
 - `HANDOFF.md` updated — suggestion layer complete, next priorities updated
+
+---
+
+### 18. Phase 2 — Agent Canonical Renames ✅ COMPLETE
+
+Display-name renames throughout the codebase. Python files NOT renamed.
+
+| Old Name | Canonical Name | File (unchanged) |
+|---|---|---|
+| DataOS | **PULSE** | `agents/dataos.py` |
+| DaiTaos | **INTEL** | `utils/daitaos.py` |
+| Watchdog | **WATCH** | `utils/watchdog.py` |
+| Suggestion Agent | **SAGE** | `utils/suggestion_agent.py` |
+| HAWK | HAWK (unchanged) | `agents/signaos.py` |
+| VAULT | VAULT (unchanged) | `agents/risk_engine.py` |
+| TRIGGER | TRIGGER (unchanged) | `agents/execution_agent.py` |
+| LEDGER | LEDGER (unchanged) | `agents/review_agent.py` |
+| Dev Agent | DEV (unchanged) | `utils/dev_agent.py` |
+| — | **CHIEF** (new, stub) | `agents/chief.py` |
+
+Files updated:
+- `mission-control/lib/agents.ts` — PULSE/INTEL names, added WATCH/SAGE/CHIEF entries with `dir` override for utils/ files
+- `utils/agent_brain.py` — AGENT_AVATARS updated with canonical names + legacy aliases
+- `docs/PROGRESS.md` + `HANDOFF.md` — agent name table updated
+
+WATCH and SAGE now appear in the Cockpit crew diagram (core and news rings).
+CHIEF shows as "missing" — placeholder until Phase 3 builds it.
 
 ---
 
