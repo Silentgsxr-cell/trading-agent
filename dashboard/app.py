@@ -780,10 +780,11 @@ end tell
                 continue
             parts = line.split('||')
             if len(parts) >= 2:
+                raw_due = parts[2].strip() if len(parts) > 2 else ''
                 tasks.append({
                     'list':  parts[0].strip(),
                     'title': parts[1].strip(),
-                    'due':   parts[2].strip() if len(parts) > 2 else '',
+                    'due':   '' if raw_due in ('missing value', 'missing value\n') else raw_due,
                 })
         return jsonify({'tasks': tasks, 'error': r.stderr.strip() or None})
     except Exception as e:
