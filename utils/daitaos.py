@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-utils/dataos.py — Silent's 6:20 AM morning brief.
+utils/daitaos.py — DaiTaos daily intelligence brief.
 Sends a Discord embed: market status, TSLA bias, watchlist scan,
 SPY tone, trading rules, session status, journal edge, edge reminder.
-Watchlist and send time are loaded from data/dataos_config.json.
+Watchlist and send time are loaded from data/daitaos_config.json.
 """
 
 import sys
@@ -24,14 +24,14 @@ load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 from config import risk_config as cfg
 from config import strategy_config as scfg
-from utils.dataos_logger import log
+from utils.daitaos_logger import log
 
 WEBHOOK_URL  = os.getenv("DISCORD_WEBHOOK_URL", "")
 EASTERN      = pytz.timezone("America/New_York")
 ARIZONA      = pytz.timezone("America/Phoenix")
 EMBED_COLOR  = 0x1A2744
 
-CONFIG_PATH = os.path.join(PROJECT_ROOT, "data", "dataos_config.json")
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "data", "daitaos_config.json")
 
 DEFAULT_CONFIG = {
     "send_time": "06:20",
@@ -357,7 +357,7 @@ def send_brief():
     total = sum(len(f["name"]) + len(f["value"]) for f in fields) + 40
     split = total > 5800
 
-    footer_text = f"ClawOps · DataOS · {now_az.strftime('%-I:%M %p AZ')}"
+    footer_text = f"ClawOps · DaiTaos · {now_az.strftime('%-I:%M %p AZ')}"
 
     if split:
         embeds = [

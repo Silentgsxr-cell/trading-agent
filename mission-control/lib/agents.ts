@@ -43,11 +43,20 @@ const CREW: Omit<AgentCard, "status" | "blockers" | "lines">[] = [
   {
     id: "data",
     name: "DataOS",
-    role: "Bars · VWAP · session levels · options chain",
+    role: "Source of truth — bars · VWAP · levels · options",
     file: "dataos.py",
     ring: "macro",
     governor: false,
-    summary: "Read-only data backbone. Aggregates 1-min bars into 2-min/15-min, computes VWAP, publishes session levels and options chain on demand.",
+    summary: "Read-only data backbone. Never thinks. Aggregates 1-min bars, computes VWAP, publishes session levels and options chain on demand.",
+  },
+  {
+    id: "daitaos",
+    name: "DaiTaos",
+    role: "Daily intelligence brief · Discord",
+    file: "daitaos.py",
+    ring: "news",
+    governor: false,
+    summary: "Morning briefing officer. Sends daily Discord brief at 6:20 AM AZ — market status, TSLA bias, watchlist scan, rules, journal edge.",
   },
   {
     id: "execution",

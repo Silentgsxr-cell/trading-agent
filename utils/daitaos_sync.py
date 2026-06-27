@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-utils/dataos_sync.py — Commit activity logs and config to GitHub.
+utils/daitaos_sync.py — Commit activity logs and config to GitHub.
 Runs daily at 4:30 PM AZ via launchd (after market close).
 Requires ~/trading-agent 2/ to be a git repo with origin set.
 Setup: cd ~/trading-agent\ 2 && git init -b master &&
@@ -17,11 +17,11 @@ UTILS_DIR    = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, PROJECT_ROOT)
 sys.path.insert(0, UTILS_DIR)
 
-from dataos_logger import log
+from daitaos_logger import log
 
 STAGE_PATHS = [
     "logs/",
-    "data/dataos_config.json",
+    "data/daitaos_config.json",
     "data/finance.json",
     "state/session.json",
 ]
@@ -51,7 +51,7 @@ def sync():
     # Commit
     msg = f"auto: activity log {today}"
     commit = run(["git", "commit", "-m", msg,
-                  "--author=DataOS Bot <dataos@silent.local>"])
+                  "--author=DaiTaos Bot <daitaos@silent.local>"])
     if commit.returncode != 0:
         print(f"❌  git commit failed:\n{commit.stderr.strip()}")
         log("⚠️", "GitHub Sync Failed", f"git commit error: {commit.stderr.strip()[:200]}")

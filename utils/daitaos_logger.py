@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-utils/dataos_logger.py — Append-only activity log.
+utils/daitaos_logger.py — Append-only activity log.
 Writes Obsidian-compatible markdown to logs/YYYY-MM-DD.md.
 Never raises — failures are silently swallowed so callers never crash.
 """
@@ -20,9 +20,9 @@ def _init_file(path: Path) -> None:
     path.write_text(
         f"---\n"
         f"date: {today.isoformat()}\n"
-        f"tags: [dataos, activity-log]\n"
+        f"tags: [daitaos, activity-log]\n"
         f"---\n\n"
-        f"# DataOS — {today.strftime('%A, %B %-d, %Y')}\n"
+        f"# DaiTaos — {today.strftime('%A, %B %-d, %Y')}\n"
     )
 
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-utils/dataos_bot.py — DataOS Discord bot.
+utils/daitaos_bot.py — DaiTaos Discord bot.
 Responds to !commands in any channel. Runs alongside the scheduled brief.
 Requires DISCORD_BOT_TOKEN in .env and Message Content Intent enabled
 in the Discord developer portal.
@@ -25,16 +25,16 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
-from dataos import (
+from daitaos import (
     s1_date_status, s2_tsla_bias, s3_watchlist, s4_spy_bias,
     s5_rules, s6_session, s7_journal, s8_edge,
     EMBED_COLOR, DEFAULT_CONFIG, load_config,
 )
-from dataos_logger import log
+from daitaos_logger import log
 
 BOT_TOKEN   = os.getenv("DISCORD_BOT_TOKEN", "")
 WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL", "")
-CONFIG_PATH = os.path.join(PROJECT_ROOT, "data", "dataos_config.json")
+CONFIG_PATH = os.path.join(PROJECT_ROOT, "data", "daitaos_config.json")
 PLIST_PATH  = os.path.join(PROJECT_ROOT, "com.silent.dataos.plist")
 
 intents = discord.Intents.default()
@@ -68,13 +68,13 @@ def _embed(title: str, value: str, footer: str = "") -> discord.Embed:
 
 @bot.event
 async def on_ready():
-    print(f"✅  DataOS bot connected as {bot.user}")
+    print(f"✅  DaiTaos bot connected as {bot.user}")
     log("🤖", "Bot Online", f"Connected as {bot.user}")
     if WEBHOOK_URL:
         try:
             requests.post(
                 WEBHOOK_URL,
-                json={"content": "🤖 DataOS online. Type `!help` for commands."},
+                json={"content": "🤖 DaiTaos online. Type `!help` for commands."},
                 timeout=10,
             )
         except Exception as ex:
@@ -112,14 +112,14 @@ async def cmd_brief(ctx):
         for name, value in (fields[:4] if split else fields):
             embed1.add_field(name=name, value=value, inline=False)
         if not split:
-            embed1.set_footer(text="ClawOps · DataOS · Paper Mode")
+            embed1.set_footer(text="ClawOps · DaiTaos · Paper Mode")
         await ctx.send(embed=embed1)
 
         if split:
             embed2 = discord.Embed(color=EMBED_COLOR)
             for name, value in fields[4:]:
                 embed2.add_field(name=name, value=value, inline=False)
-            embed2.set_footer(text="ClawOps · DataOS · Paper Mode")
+            embed2.set_footer(text="ClawOps · DaiTaos · Paper Mode")
             await ctx.send(embed=embed2)
 
         log("🤖", "Bot: !brief", f"On-demand brief sent in #{ctx.channel.name}")
@@ -163,14 +163,14 @@ async def cmd_pnl(ctx):
 
 @bot.command(name="config")
 async def cmd_config(ctx, *args):
-    """Show or update DataOS config. Subcommands: time HH:MM, watchlist add/remove SYMBOL."""
+    """Show or update DaiTaos config. Subcommands: time HH:MM, watchlist add/remove SYMBOL."""
     cfg = load_config()
 
     # !config — show current config
     if not args:
         wl = ", ".join(cfg.get("watchlist", []))
         await ctx.send(embed=_embed(
-            "⚙️ DataOS Config",
+            "⚙️ DaiTaos Config",
             f"**Brief time:** `{cfg.get('send_time','06:20')}` {cfg.get('timezone','America/Phoenix')}\n"
             f"**Watchlist ({len(cfg.get('watchlist',[]))}):** {wl}"
         ))
@@ -256,7 +256,7 @@ async def cmd_config(ctx, *args):
 async def cmd_help(ctx):
     """List all available commands."""
     await ctx.send(embed=_embed(
-        "🤖 DataOS Commands",
+        "🤖 DaiTaos Commands",
         "`!brief` — full morning brief\n"
         "`!tsla` — TSLA bias (price, EMA 9, H/L, direction)\n"
         "`!watchlist` — watchlist scan table\n"
@@ -268,7 +268,7 @@ async def cmd_help(ctx):
         "`!config watchlist add SYMBOL` — add to watchlist\n"
         "`!config watchlist remove SYMBOL` — remove from watchlist\n"
         "`!help` — this message",
-        footer="ClawOps · DataOS · Paper Mode"
+        footer="ClawOps · DaiTaos · Paper Mode"
     ))
 
 
@@ -278,5 +278,5 @@ if __name__ == "__main__":
         print("Create a bot at https://discord.com/developers/applications")
         print("Enable Message Content Intent in Bot settings, then add the token to .env")
         sys.exit(1)
-    print("Starting DataOS bot…")
+    print("Starting DaiTaos bot…")
     bot.run(BOT_TOKEN)
