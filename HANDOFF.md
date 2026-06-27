@@ -78,65 +78,38 @@ BACKGROUND PROCESSES (start manually each session):
 
 ---
 
-## Current state — session ended 2026-06-26 (evening)
+## Current state — session ended 2026-06-26
 
-### Suggestion Intelligence Layer — IN PROGRESS
+### Suggestion Intelligence Layer — ✅ COMPLETE (all 10 steps)
 
-**Completed (Steps 1–6):**
 | Step | File | Status |
 |---|---|---|
-| 1 — Shared Brain | `utils/agent_brain.py` | ✅ Done |
-| 2 — Data Schema + Flask Routes | `data/suggestions.json` + 7 routes in `dashboard/app.py` | ✅ Done |
-| 3 — Suggestion Agent | `utils/suggestion_agent.py` + `deploy/com.silent.suggestion.plist` | ✅ Done |
-| 4 — Agent Self-Hooks | risk_engine, signal_agent, watchdog, dev_agent | ✅ Done |
-| 5 — Tab Tracking | `components/TabTracker.tsx` + Flask analytics routes | ✅ Done |
-| 6 — Whiteboard UI | `app/suggestions/page.tsx` + `SuggestionBoard.tsx` | ✅ Done |
+| 1 — Shared Brain | `utils/agent_brain.py` | ✅ |
+| 2 — Data Schema + Flask Routes | `data/suggestions.json` + 7 routes in `dashboard/app.py` | ✅ |
+| 3 — Suggestion Agent | `utils/suggestion_agent.py` + `deploy/com.silent.suggestion.plist` | ✅ |
+| 4 — Agent Self-Hooks | risk_engine, signal_agent, watchdog, dev_agent | ✅ |
+| 5 — Tab Tracking | `components/TabTracker.tsx` + Flask analytics routes | ✅ |
+| 6 — Whiteboard UI | `app/suggestions/page.tsx` + `SuggestionBoard.tsx` | ✅ |
+| 7 — Flip-card Sidebar | `QueueFlipCard` inside `SuggestionBoard.tsx` — Dev + Silent flip cards | ✅ |
+| 8 — Sidebar Nav Badge | `components/Sidebar.tsx` — "use client", Suggestions + polling badge | ✅ |
+| 9 — Discord Routing | daitaos.py → MORNING_BRIEF, dev_agent.py → DEV_AGENT, watchdog.py → WATCHDOG | ✅ |
+| 10 — Final Build | `npm run build` clean, docs updated, committed to master | ✅ |
 
-**Remaining (Steps 7–10) — start here next session:**
-| Step | What to build | Notes |
-|---|---|---|
-| 7 — Collapsible Sidebar | Full flip-card sidebar on suggestions page | QueueSidebar is embedded but not the full flip-card spec from the prompt |
-| 8 — Sidebar Nav | Add Suggestions to `components/Sidebar.tsx` with badge counter | Simple — add one nav entry, badge polls `/api/suggestions/stats` every 30s |
-| 9 — Discord Routing | Update all utils to use 6 dedicated webhook env vars | watchdog.py uses `DISCORD_WEBHOOK_URL`, daitaos.py, dev_agent.py same |
-| 10 — Finalize | npm build verify + final docs + commit | Build already passes, just needs cleanup |
-
-**Resume prompt for next session:**
+### .env — needs 6 webhook URLs filled in manually
 ```
-Continue the Suggestion Intelligence Layer for ClawOps.
-Steps 1–6 are complete and committed to master.
-Pick up at Step 7 — Collapsible Sidebar (full flip-card style per spec).
-Then Step 8 (sidebar nav badge), Step 9 (Discord routing cleanup),
-Step 10 (final build + commit).
-See docs/PROGRESS.md Step 17 for full detail on what's done.
+DISCORD_MORNING_BRIEF_WEBHOOK=   ← daitaos.py (morning brief)
+DISCORD_TRADE_ALERTS_WEBHOOK=    ← reserved for execution agent
+DISCORD_WATCHDOG_WEBHOOK=        ← watchdog.py
+DISCORD_DEV_AGENT_WEBHOOK=       ← dev_agent.py
+DISCORD_SUGGESTIONS_WEBHOOK=     ← priority ≥ 9 suggestions
+DISCORD_AGENT_ACTIVITY_WEBHOOK=  ← suggestion_agent cycle summaries
 ```
 
-### Suggestion layer — key files created this session
-- `utils/agent_brain.py` — shared brain module (AgentBrain class)
-- `utils/suggestion_agent.py` — autonomous suggestion agent (--dry-run tested)
-- `deploy/com.silent.suggestion.plist` — LaunchAgent (5AM + 5:30PM AZ)
-- `data/suggestions.json` — suggestion store (empty list, ready to populate)
-- `data/tab_usage.json` — (auto-created on first tab event)
-- `mission-control/components/TabTracker.tsx` — client tab tracking
-- `mission-control/app/suggestions/page.tsx` — server shell
-- `mission-control/app/suggestions/SuggestionBoard.tsx` — full client board
-
-### Install suggestion LaunchAgent (when ready)
+### Install suggestion LaunchAgent
 ```
 cp deploy/com.silent.suggestion.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.silent.suggestion.plist
 ```
-
-### .env — needs 6 new webhook vars added manually
-Add these to `/Users/silent/trading-agent 2/.env`:
-```
-DISCORD_MORNING_BRIEF_WEBHOOK=
-DISCORD_TRADE_ALERTS_WEBHOOK=
-DISCORD_WATCHDOG_WEBHOOK=
-DISCORD_DEV_AGENT_WEBHOOK=
-DISCORD_SUGGESTIONS_WEBHOOK=
-DISCORD_AGENT_ACTIVITY_WEBHOOK=
-```
-(Discord routing cleanup in Step 9 will wire these up in code)
 
 ### Dev agent status
 - **Dry run confirmed working** — all 6 safety gates pass
@@ -247,13 +220,13 @@ Never committed to git. Watchdog checks this every cycle.
 
 ## Next priorities (in order)
 
-1. **Add Anthropic API credits** → run TICKET-001 live → agent adds nickname badges to AgentCard
-2. **Webull data agent** — wire DataOS to real bar + options chain data; feed EvalContext
-3. **Calendar tab** — trading schedule, earnings, FOMC, planned session days
-4. **Flip cards** — AgentCard 3D CSS flip (paused this session, spec in original message)
-5. **Paper execution** — `agents/execution_agent.py` wired to journal_writer fill simulation
-6. **Strike selection** — `agents/strategist.py`
-7. **Finance tab** — monthly budget reset, historical month-over-month tracking
+1. **Add Anthropic API credits** → `console.anthropic.com` → Plans & Billing → run TICKET-001 live
+2. **Populate Discord webhooks** — fill 6 vars in `.env` (see above)
+3. **Install suggestion LaunchAgent** — copy plist + `launchctl load`
+4. **Webull data agent** — wire DataOS to real bar + options chain data; feed EvalContext
+5. **Calendar tab** — trading schedule, earnings, FOMC, planned session days
+6. **Paper execution** — `agents/execution_agent.py` wired to journal_writer fill simulation
+7. **Strike selection** — `agents/strategist.py`
 
 ---
 

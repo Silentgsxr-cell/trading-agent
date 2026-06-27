@@ -78,7 +78,7 @@ except Exception:
 _ET = ZoneInfo("America/New_York")
 _AZ = ZoneInfo("America/Phoenix")
 
-WEBHOOK_URL    = os.getenv("DISCORD_WEBHOOK_URL", "")
+WEBHOOK_URL    = os.getenv("DISCORD_WATCHDOG_WEBHOOK", "")
 LOG_FILE       = PROJECT_ROOT / "logs" / "watchdog.log"
 LOG_MAX_BYTES  = 10 * 1024 * 1024   # 10 MB
 CHECK_INTERVAL = 60                  # seconds

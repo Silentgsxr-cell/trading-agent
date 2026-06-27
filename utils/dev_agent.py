@@ -48,7 +48,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 _ET = ZoneInfo("America/New_York")
 _AZ = ZoneInfo("America/Phoenix")
 
-WEBHOOK_URL     = os.getenv("DISCORD_WEBHOOK_URL", "")
+WEBHOOK_URL     = os.getenv("DISCORD_DEV_AGENT_WEBHOOK", "")
 ANTHROPIC_KEY   = os.getenv("ANTHROPIC_API_KEY", "")
 
 try:

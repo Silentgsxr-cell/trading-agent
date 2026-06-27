@@ -271,9 +271,9 @@ CSS-only 3D flip on every agent card in the Cockpit:
 
 ---
 
-### 17. Suggestion Intelligence Layer — `utils/agent_brain.py` (PARTIAL — in progress)
+### 17. Suggestion Intelligence Layer — `utils/agent_brain.py` ✅ COMPLETE
 
-Major multi-step feature. Steps 1–6 complete, Steps 7–10 remaining.
+Major multi-step feature. All 10 steps complete as of 2026-06-26.
 
 **Step 1 — Shared Brain Module** ✅ `utils/agent_brain.py`
 - `AgentBrain(agent_id, agent_color)` — single import interface for all agents
@@ -341,24 +341,46 @@ All hooks wrapped in `try/except` — brain failure never breaks agent logic.
   - Sidebar toggle button (‹/›) on right edge
 - Build passes ✅ — `/suggestions` route included in build output
 
-**Steps 7–10 — NOT YET DONE:**
-- Step 7: Collapsible sidebar (QueueSidebar is embedded in SuggestionBoard but the full flip-card sidebar spec with flip animation is not built separately)
-- Step 8: Sidebar nav — Suggestions link not yet added to `Sidebar.tsx`
-- Step 9: Discord routing cleanup — existing utils still use `DISCORD_WEBHOOK_URL` instead of 6 dedicated webhooks
-- Step 10: Final build verification, PROGRESS.md / HANDOFF.md final update, commit + push
+**Step 7 — Collapsible Flip-Card Sidebar** ✅ `mission-control/app/suggestions/SuggestionBoard.tsx`
+- Two vertically stacked flip cards: DEV (blue #2196f3) and SILENT (maroon #8B1A1A)
+- Click-to-flip via JS state + inline `style.transform = rotateY(180deg)` (not hover CSS)
+- `transform-style: preserve-3d` + `backface-visibility: hidden` on both faces
+- Front face: colored avatar + section label + active/archived count bubble + "Click to view queue" hint
+- Back face: Active | Archive sub-tabs with active route indicator
+  - Active items: agent dot + title (clamp-2) + circular SVG progress ring (r=11, dashoffset)
+  - Silent active: draggable slider 0–100%; at 100% triggers inline note prompt → auto-archive on confirm
+  - Dev active: ticket ID chip (blue monospace)
+  - Archive: COMPLETED (green) / DISCARDED (grey) chip + completed_by + archive_reason + timestamp
+- localStorage persistence: `clawops-dev-flipped`, `clawops-silent-flipped`, `clawops-dev-subtab`, `clawops-silent-subtab`, `clawops-sidebar-open`
+- `QueueSidebar` wrapper component composes both flip cards, filters by queue field
+- `onComplete(id, note)` handler: archives with note at 100% progress
+
+**Step 8 — Sidebar Nav** ✅ `mission-control/components/Sidebar.tsx`
+- Converted to `"use client"` with `usePathname()` for active route highlighting
+- Suggestions link added between Intelligence and Research: `{ href: "/suggestions", label: "Suggestions", glyph: "📌" }`
+- Badge counter: polls `GET /api/suggestions/stats` every 30s, shows `unreviewed` count as iOS-style maroon badge
+- Active route: `bg-navy-700/80` background + left maroon accent bar + highlighted glyph
+- Falls back silently when Flask is offline (badge stays at 0)
+
+**Step 9 — Discord Routing Cleanup** ✅
+- `utils/daitaos.py` — `DISCORD_WEBHOOK_URL` → `DISCORD_MORNING_BRIEF_WEBHOOK` (line 29 + error string)
+- `utils/dev_agent.py` — `DISCORD_WEBHOOK_URL` → `DISCORD_DEV_AGENT_WEBHOOK` (line 51 only; line 181 `_load_secrets()` scan list left unchanged)
+- `utils/watchdog.py` — `DISCORD_WEBHOOK_URL` → `DISCORD_WATCHDOG_WEBHOOK` (line 81 only; line 91 `_SECRET_VARS` scan list left unchanged)
+- All 6 dedicated channels now in use across the system
+
+**Step 10 — Final Build Verification** ✅
+- `npm run build` — all 10 routes compile clean, `/suggestions` at 6.41 kB, zero TypeScript errors
+- `docs/PROGRESS.md` updated — section 17 marked complete
+- `HANDOFF.md` updated — suggestion layer complete, next priorities updated
 
 ---
 
 ## What's Next
 
-1. **Complete suggestion layer Steps 7–10** (next session):
-   - Step 7: Full collapsible sidebar with flip cards (Dev/Silent) — currently embedded, not flip-card style
-   - Step 8: Add Suggestions to Sidebar.tsx nav with badge counter
-   - Step 9: Discord routing cleanup (6 dedicated webhooks across all utils)
-   - Step 10: Final build + commit
-2. **Add Anthropic API credits** — `console.anthropic.com` → Plans & Billing
-3. **Run TICKET-001 live** once credits added
-4. **Webull data agent** — wire DataOS to real bar + options chain data
-5. **Calendar tab** — trading schedule, earnings, FOMC
+1. **Add Anthropic API credits** — `console.anthropic.com` → Plans & Billing → run TICKET-001 live
+2. **Populate Discord webhooks** — add 6 channel webhook URLs to `.env`
+3. **Install suggestion LaunchAgent** — `cp deploy/com.silent.suggestion.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.silent.suggestion.plist`
+4. **Webull data agent** — wire DataOS to real bar + options chain data; feed EvalContext
+5. **Calendar tab** — trading schedule, earnings, FOMC, planned session days
 6. **Paper execution** — `agents/execution_agent.py` wired to fill simulation
 7. **Strike selection** — `agents/strategist.py`

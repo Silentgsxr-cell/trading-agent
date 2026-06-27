@@ -26,7 +26,7 @@ from config import risk_config as cfg
 from config import strategy_config as scfg
 from utils.daitaos_logger import log
 
-WEBHOOK_URL  = os.getenv("DISCORD_WEBHOOK_URL", "")
+WEBHOOK_URL  = os.getenv("DISCORD_MORNING_BRIEF_WEBHOOK", "")
 EASTERN      = pytz.timezone("America/New_York")
 ARIZONA      = pytz.timezone("America/Phoenix")
 EMBED_COLOR  = 0x1A2744
@@ -395,7 +395,7 @@ def s9_dev_overnight() -> str:
 
 def send_brief():
     if not WEBHOOK_URL:
-        print("ERROR: DISCORD_WEBHOOK_URL not set in .env")
+        print("ERROR: DISCORD_MORNING_BRIEF_WEBHOOK not set in .env")
         sys.exit(1)
 
     now_az = datetime.datetime.now(ARIZONA)
