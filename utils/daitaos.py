@@ -450,10 +450,39 @@ def send_brief():
             f"**TSLA:** {tsla_line}\n"
             f"**SPY:** {spy_line}\n"
             f"Sent at {now_az.strftime('%-I:%M %p AZ')} · {label}")
+
+        # Write structured log for Master Chief home page
+        _write_brief_log(fields, now_az)
     else:
         print(f"❌  Discord error {resp.status_code}: {resp.text}")
         log("⚠️", "Morning Brief Failed", f"Discord returned {resp.status_code}")
         sys.exit(1)
+
+
+def _write_brief_log(fields: list, now_az: datetime.datetime) -> None:
+    """Write a structured JSON log so Master Chief home page can display the brief."""
+    try:
+        log_path = os.path.join(PROJECT_ROOT, "logs", "morning_brief_log.json")
+        watchlist_raw = fields[2]["value"]  # s3_watchlist section
+        watchlist_lines = [
+            l.strip() for l in watchlist_raw.split("\n")
+            if l.strip() and not l.startswith("#") and len(l.strip()) > 2
+        ]
+        brief = {
+            "sent_at": now_az.isoformat(),
+            "sections": {
+                "date_status":   fields[0]["value"].split("\n")[0].strip(),
+                "tsla":          fields[1]["value"].split("\n")[0].strip(),
+                "watchlist":     watchlist_lines[:10],
+                "spy":           fields[3]["value"].split("\n")[1].strip() if "\n" in fields[3]["value"] else fields[3]["value"].strip(),
+                "catalysts":     fields[4]["value"].strip()[:400],  # today's rules as context
+                "dev_overnight": fields[8]["value"].strip()[:400] if len(fields) > 8 else "",
+            },
+        }
+        with open(log_path, "w") as f:
+            json.dump(brief, f, indent=2)
+    except Exception as exc:
+        print(f"⚠️  Could not write morning_brief_log.json: {exc}")
 
 
 if __name__ == "__main__":
