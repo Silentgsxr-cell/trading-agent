@@ -718,8 +718,6 @@ def main(dry_run: bool = False) -> None:
         ok, reason = safety_checks(ticket)
         if not ok:
             _log("SAFETY", reason)
-            _append_log(db, tid, f"SAFETY BLOCKED: {reason}")
-            _save_tickets(db)
             if "market hours" in reason:
                 break   # All future tickets blocked too — stop the run
             continue
