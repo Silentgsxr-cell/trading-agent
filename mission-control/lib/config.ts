@@ -14,6 +14,7 @@ export const VAULT_ROOT =
   process.env.CLAWOPS_VAULT_ROOT || path.resolve(MC_DIR, "..", "..");
 
 export const PATHS = {
+  projectRoot: PROJECT_ROOT,
   journalCsv: path.join(PROJECT_ROOT, "data", "journal.csv"),
   agentsV2Dir: path.join(PROJECT_ROOT, "agents"),
   legacyAgentDir: path.join(PROJECT_ROOT, "dashboard", "agent"),

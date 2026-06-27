@@ -265,5 +265,165 @@ def api_backtest():
         return jsonify({'error': str(e)}), 500
 
 
+# ─── API: Dev Agent Tickets ───────────────────────────────────────────────────
+
+import datetime as _dt
+
+TICKETS_FILE = os.path.join(_ROOT, "data", "tickets.json")
+
+TICKET_BLOCKED_PATHS = [
+    "agents/", "config/", "tests/", ".env",
+    "utils/watchdog.py", "utils/state_manager.py",
+    "utils/journal_writer.py", "utils/event_log.py",
+]
+
+TICKET_DEFAULTS = {
+    "started_at": None, "completed_at": None,
+    "files_read": [], "files_modified": [], "files_created": [],
+    "git_branch": "", "git_commit_hash": "", "agent_summary": "",
+    "smoke_test_passed": None, "log": [],
+}
+
+
+def _load_ticket_db() -> dict:
+    if not os.path.exists(TICKETS_FILE):
+        return {"paused": False, "tickets": []}
+    with open(TICKETS_FILE) as f:
+        return json.load(f)
+
+
+def _save_ticket_db(db: dict) -> None:
+    with open(TICKETS_FILE, "w") as f:
+        json.dump(db, f, indent=2, default=str)
+
+
+def _next_ticket_id(tickets: list) -> str:
+    nums = []
+    for t in tickets:
+        m = __import__("re").match(r"TICKET-(\d+)", t.get("id", ""))
+        if m:
+            nums.append(int(m.group(1)))
+    n = max(nums, default=0) + 1
+    return f"TICKET-{n:03d}"
+
+
+@app.route('/api/tickets', methods=['GET'])
+def api_tickets_get():
+    try:
+        return jsonify(_load_ticket_db())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tickets', methods=['POST'])
+def api_tickets_post():
+    data = request.get_json(force=True) or {}
+    try:
+        db = _load_ticket_db()
+
+        # Validate no blocked paths in allowed_paths
+        allowed = data.get('allowed_paths', [])
+        for ap in allowed:
+            for bp in TICKET_BLOCKED_PATHS:
+                if ap.startswith(bp) or bp.startswith(ap.rstrip('/')):
+                    return jsonify({'error': f"allowed_path '{ap}' overlaps blocked path '{bp}'"}), 400
+
+        ticket = {
+            **TICKET_DEFAULTS,
+            "id":                _next_ticket_id(db["tickets"]),
+            "title":             str(data.get("title", "")).strip(),
+            "description":       str(data.get("description", "")).strip(),
+            "what_to_complete":  str(data.get("what_to_complete", "")).strip(),
+            "what_done_looks_like": str(data.get("what_done_looks_like", "")).strip(),
+            "connectors_needed": data.get("connectors_needed", []),
+            "restrictions":      data.get("restrictions", []),
+            "allowed_paths":     allowed,
+            "blocked_paths":     data.get("blocked_paths", TICKET_BLOCKED_PATHS),
+            "priority":          data.get("priority", "medium"),
+            "complexity":        data.get("complexity", "simple"),
+            "complexity_color":  data.get("complexity_color", "#00e676"),
+            "status":            "open",
+            "created_at":        _dt.datetime.now().isoformat(),
+            "approval_gate":     data.get("approval_gate", "auto"),
+        }
+
+        if not ticket["title"]:
+            return jsonify({'error': 'title is required'}), 400
+
+        db["tickets"].append(ticket)
+        _save_ticket_db(db)
+        return jsonify({'success': True, 'ticket': ticket}), 201
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tickets/<ticket_id>', methods=['GET'])
+def api_ticket_get(ticket_id: str):
+    try:
+        db = _load_ticket_db()
+        tid = ticket_id.upper()
+        t = next((t for t in db["tickets"] if t["id"].upper() == tid), None)
+        if t is None:
+            return jsonify({'error': f'Ticket {ticket_id} not found'}), 404
+        return jsonify(t)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tickets/<ticket_id>/approve', methods=['POST'])
+def api_ticket_approve(ticket_id: str):
+    try:
+        db = _load_ticket_db()
+        tid = ticket_id.upper()
+        t = next((t for t in db["tickets"] if t["id"].upper() == tid), None)
+        if t is None:
+            return jsonify({'error': f'Ticket {ticket_id} not found'}), 404
+        if t['status'] not in ('needs_review', 'open'):
+            return jsonify({'error': f"Ticket is '{t['status']}', not needs_review"}), 400
+        t['status'] = 'open'
+        t['approval_gate'] = 'approved'
+        _save_ticket_db(db)
+        return jsonify({'success': True, 'ticket': t})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/tickets/<ticket_id>/revert', methods=['POST'])
+def api_ticket_revert(ticket_id: str):
+    import subprocess as _sp
+    try:
+        db = _load_ticket_db()
+        tid = ticket_id.upper()
+        t = next((t for t in db["tickets"] if t["id"].upper() == tid), None)
+        if t is None:
+            return jsonify({'error': f'Ticket {ticket_id} not found'}), 404
+        if t['status'] != 'done':
+            return jsonify({'error': 'Only done tickets can be reverted'}), 400
+        commit_hash = t.get('git_commit_hash', '')
+        if not commit_hash:
+            return jsonify({'error': 'No commit hash recorded for this ticket'}), 400
+
+        r1 = _sp.run(['git', 'revert', '--no-edit', commit_hash],
+                     cwd=_ROOT, capture_output=True, text=True)
+        if r1.returncode != 0:
+            return jsonify({'error': f'git revert failed: {r1.stderr[:400]}'}), 500
+
+        r2 = _sp.run(['git', 'push', 'origin', 'master'],
+                     cwd=_ROOT, capture_output=True, text=True)
+        if r2.returncode != 0:
+            return jsonify({'error': f'git push failed: {r2.stderr[:400]}'}), 500
+
+        t['status'] = 'open'
+        t['git_commit_hash'] = ''
+        t['agent_summary'] = ''
+        t['completed_at'] = None
+        t['smoke_test_passed'] = None
+        _save_ticket_db(db)
+        return jsonify({'success': True, 'ticket': t})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

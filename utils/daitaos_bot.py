@@ -252,6 +252,219 @@ async def cmd_config(ctx, *args):
     )
 
 
+# ── Dev Agent ticket commands ─────────────────────────────────────────────────
+
+TICKETS_FILE = os.path.join(PROJECT_ROOT, "data", "tickets.json")
+
+
+def _load_tickets_bot() -> dict:
+    if not os.path.exists(TICKETS_FILE):
+        return {"paused": False, "tickets": []}
+    with open(TICKETS_FILE) as f:
+        return json.load(f)
+
+
+def _save_tickets_bot(db: dict) -> None:
+    with open(TICKETS_FILE, "w") as f:
+        json.dump(db, f, indent=2)
+
+
+def _ticket_by_id(db: dict, ticket_id: str):
+    tid = ticket_id.upper()
+    return next((t for t in db["tickets"] if t["id"].upper() == tid), None)
+
+
+STATUS_EMOJI = {
+    "open":         "🟢",
+    "in_progress":  "🔵",
+    "done":         "✅",
+    "failed":       "🔴",
+    "needs_review": "🟡",
+}
+
+PRIORITY_EMOJI = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "⚪"}
+
+
+@bot.command(name="approve")
+async def cmd_approve(ctx, ticket_id: str = ""):
+    """Approve a complex ticket for dev agent execution. !approve TICKET-XXX"""
+    if not ticket_id:
+        await ctx.send("❌ Usage: `!approve TICKET-XXX`")
+        return
+    db = _load_tickets_bot()
+    t = _ticket_by_id(db, ticket_id)
+    if t is None:
+        await ctx.send(f"❌ Ticket `{ticket_id.upper()}` not found.")
+        return
+    if t["status"] not in ("needs_review", "open"):
+        await ctx.send(f"⚠️ `{t['id']}` is `{t['status']}` — only needs_review or open tickets can be approved.")
+        return
+    t["status"] = "open"
+    t["approval_gate"] = "approved"
+    _save_tickets_bot(db)
+    await ctx.send(embed=_embed(
+        f"✅ {t['id']} Approved",
+        f"**{t['title']}**\n\nTicket approved — dev agent will pick it up on the next scheduled run.",
+    ))
+    log("🟢", f"Bot: !approve {t['id']}", f"Approved by {ctx.author}")
+
+
+@bot.command(name="ticket")
+async def cmd_ticket(ctx, *args):
+    """Dev agent ticket commands. !ticket status|pause|resume|log TICKET-XXX"""
+    if not args:
+        await ctx.send(
+            "❌ Usage:\n"
+            "`!ticket status` — all ticket statuses\n"
+            "`!ticket pause` — pause dev agent\n"
+            "`!ticket resume` — resume dev agent\n"
+            "`!ticket log TICKET-XXX` — execution log for a ticket"
+        )
+        return
+
+    sub = args[0].lower()
+
+    # !ticket status
+    if sub == "status":
+        db = _load_tickets_bot()
+        tickets = db.get("tickets", [])
+        paused  = db.get("paused", False)
+        if not tickets:
+            await ctx.send("📋 No tickets in the queue.")
+            return
+
+        lines = []
+        for t in tickets:
+            em  = STATUS_EMOJI.get(t.get("status", ""), "•")
+            pri = PRIORITY_EMOJI.get(t.get("priority", ""), "")
+            lines.append(
+                f"{em} `{t['id']}` {pri} **{t['title'][:40]}** "
+                f"— _{t.get('status', '?')}_ / {t.get('complexity', '?')}"
+            )
+
+        footer = "⏸ Dev agent PAUSED" if paused else "▶ Dev agent active"
+        chunks = []
+        cur = ""
+        for line in lines:
+            if len(cur) + len(line) + 1 > 900:
+                chunks.append(cur)
+                cur = line
+            else:
+                cur = (cur + "\n" + line).strip()
+        if cur:
+            chunks.append(cur)
+
+        for i, chunk in enumerate(chunks):
+            e = discord.Embed(
+                title=f"📋 Dev Queue ({len(tickets)} tickets)" if i == 0 else "📋 (continued)",
+                color=EMBED_COLOR,
+            )
+            e.add_field(name="​", value=chunk, inline=False)
+            if i == len(chunks) - 1:
+                e.set_footer(text=footer)
+            await ctx.send(embed=e)
+
+    # !ticket pause
+    elif sub == "pause":
+        db = _load_tickets_bot()
+        db["paused"] = True
+        _save_tickets_bot(db)
+        await ctx.send("⏸ Dev agent **paused** — won't pick up new tickets until `!ticket resume`.")
+        log("⏸", "Bot: !ticket pause", f"Paused by {ctx.author}")
+
+    # !ticket resume
+    elif sub == "resume":
+        db = _load_tickets_bot()
+        db["paused"] = False
+        _save_tickets_bot(db)
+        await ctx.send("▶ Dev agent **resumed** — will pick up open tickets on next scheduled run.")
+        log("▶", "Bot: !ticket resume", f"Resumed by {ctx.author}")
+
+    # !ticket log TICKET-XXX
+    elif sub == "log" and len(args) >= 2:
+        ticket_id = args[1]
+        db = _load_tickets_bot()
+        t = _ticket_by_id(db, ticket_id)
+        if t is None:
+            await ctx.send(f"❌ Ticket `{ticket_id.upper()}` not found.")
+            return
+        entries = t.get("log") or []
+        if not entries:
+            await ctx.send(f"📋 `{t['id']}` has no log entries yet.")
+            return
+        # Show last 15 entries to stay within Discord limits
+        shown = entries[-15:]
+        text  = "\n".join(shown)
+        if len(text) > 1800:
+            text = text[-1800:]
+        await ctx.send(embed=_embed(
+            f"📋 Log — {t['id']} ({t.get('status','?')})",
+            f"```\n{text}\n```",
+            footer=f"{len(entries)} total entries" + (" (showing last 15)" if len(entries) > 15 else ""),
+        ))
+
+    else:
+        await ctx.send(
+            "❌ Unknown subcommand.\n"
+            "`!ticket status` | `!ticket pause` | `!ticket resume` | `!ticket log TICKET-XXX`"
+        )
+
+
+@bot.command(name="revert")
+async def cmd_revert(ctx, ticket_id: str = ""):
+    """Revert a completed ticket by reverting its commit. !revert TICKET-XXX"""
+    if not ticket_id:
+        await ctx.send("❌ Usage: `!revert TICKET-XXX`")
+        return
+
+    db = _load_tickets_bot()
+    t = _ticket_by_id(db, ticket_id)
+    if t is None:
+        await ctx.send(f"❌ Ticket `{ticket_id.upper()}` not found.")
+        return
+    if t.get("status") != "done":
+        await ctx.send(f"⚠️ `{t['id']}` is `{t.get('status', '?')}` — only done tickets can be reverted.")
+        return
+
+    commit_hash = t.get("git_commit_hash", "")
+    if not commit_hash:
+        await ctx.send(f"❌ `{t['id']}` has no commit hash recorded — cannot revert automatically.")
+        return
+
+    await ctx.send(f"⏳ Reverting `{t['id']}` (commit `{commit_hash}`)…")
+
+    def _do_revert():
+        import subprocess as sp
+        r1 = sp.run(
+            ["git", "revert", "--no-edit", commit_hash],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+        )
+        if r1.returncode != 0:
+            return False, r1.stderr[:400]
+        r2 = sp.run(
+            ["git", "push", "origin", "master"],
+            cwd=PROJECT_ROOT, capture_output=True, text=True,
+        )
+        return r2.returncode == 0, r2.stderr[:400]
+
+    success, err = await _run(_do_revert)
+    if success:
+        t["status"] = "open"
+        t["git_commit_hash"] = ""
+        t["agent_summary"] = ""
+        t["completed_at"] = None
+        t["smoke_test_passed"] = None
+        _save_tickets_bot(db)
+        await ctx.send(embed=_embed(
+            f"↩️ {t['id']} Reverted",
+            f"Commit `{commit_hash}` reverted and pushed to master.\n"
+            f"Ticket reset to `open` — will be picked up on next dev agent run.",
+        ))
+        log("↩️", f"Bot: !revert {t['id']}", f"Reverted by {ctx.author}, commit={commit_hash}")
+    else:
+        await ctx.send(f"❌ Revert failed:\n```\n{err}\n```")
+
+
 @bot.command(name="help")
 async def cmd_help(ctx):
     """List all available commands."""
@@ -267,6 +480,13 @@ async def cmd_help(ctx):
         "`!config time HH:MM` — update brief send time\n"
         "`!config watchlist add SYMBOL` — add to watchlist\n"
         "`!config watchlist remove SYMBOL` — remove from watchlist\n"
+        "——\n"
+        "`!ticket status` — all tickets and statuses\n"
+        "`!ticket pause` — pause dev agent\n"
+        "`!ticket resume` — resume dev agent\n"
+        "`!ticket log TICKET-XXX` — ticket execution log\n"
+        "`!approve TICKET-XXX` — approve complex ticket\n"
+        "`!revert TICKET-XXX` — revert a completed ticket\n"
         "`!help` — this message",
         footer="ClawOps · DaiTaos · Paper Mode"
     ))

@@ -332,6 +332,65 @@ def s8_edge() -> str:
     return "*ORB only. First 90 minutes. Risk $10 per trade. Let the setup come to you.*"
 
 
+def s9_dev_overnight() -> str:
+    """Dev Agent overnight summary for the morning brief."""
+    tickets_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "tickets.json")
+    audit_path   = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "logs", "dev_agent_audit.log")
+
+    try:
+        if not os.path.exists(tickets_path):
+            return "No ticket database found."
+        with open(tickets_path) as f:
+            db = json.load(f)
+
+        tickets    = db.get("tickets", [])
+        paused     = db.get("paused", False)
+        cutoff     = datetime.datetime.now() - datetime.timedelta(hours=16)  # since ~yesterday's brief
+
+        # Completed and failed since last brief
+        completed = [t for t in tickets if t.get("status") == "done"
+                     and t.get("completed_at")
+                     and datetime.datetime.fromisoformat(t["completed_at"]) > cutoff]
+        failed    = [t for t in tickets if t.get("status") == "failed"
+                     and t.get("started_at")
+                     and datetime.datetime.fromisoformat(t["started_at"]) > cutoff]
+        open_q    = [t for t in tickets if t.get("status") == "open"]
+        review    = [t for t in tickets if t.get("status") == "needs_review"]
+
+        lines = []
+        if not completed and not failed:
+            lines.append("No dev agent activity overnight.")
+        else:
+            if completed:
+                lines.append(f"✅ **{len(completed)} ticket(s) completed overnight:**")
+                for t in completed:
+                    changed = len(t.get("files_modified", [])) + len(t.get("files_created", []))
+                    lines.append(f"  • `{t['id']}` — {t['title'][:50]} ({changed} files)")
+            if failed:
+                lines.append(f"❌ **{len(failed)} ticket(s) failed:**")
+                for t in failed:
+                    lines.append(f"  • `{t['id']}` — {t['title'][:50]}")
+
+        lines.append(f"📋 Queue: {len(open_q)} open · {len(review)} needs review")
+        if paused:
+            lines.append("⏸ Dev agent is **paused**")
+
+        # Security flags from audit log (yesterday's run)
+        if os.path.exists(audit_path):
+            try:
+                with open(audit_path) as f:
+                    recent_lines = f.readlines()[-20:]
+                flags = [l.strip() for l in recent_lines if "CRITICAL" in l or "failed" in l.lower()]
+                if flags:
+                    lines.append(f"⚠️ {len(flags)} security/failure flag(s) in audit log")
+            except Exception:
+                pass
+
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"Dev agent status unavailable: {exc}"
+
+
 # ── Send ──────────────────────────────────────────────────────────────────────
 
 def send_brief():
@@ -349,8 +408,9 @@ def send_brief():
         {"name": "📊  SPY MARKET BIAS",         "value": s4_spy_bias(),    "inline": False},
         {"name": "⚙️   TODAY'S TRADING RULES",  "value": s5_rules(),       "inline": False},
         {"name": "🤖  AGENT & SESSION STATUS",  "value": s6_session(),     "inline": False},
-        {"name": "📓  JOURNAL EDGE SUMMARY",    "value": s7_journal(),     "inline": False},
-        {"name": "💡  SILENT'S EDGE REMINDER",  "value": s8_edge(),        "inline": False},
+        {"name": "📓  JOURNAL EDGE SUMMARY",    "value": s7_journal(),        "inline": False},
+        {"name": "💡  SILENT'S EDGE REMINDER",  "value": s8_edge(),           "inline": False},
+        {"name": "⌬   DEV AGENT OVERNIGHT",     "value": s9_dev_overnight(),  "inline": False},
     ]
 
     # Measure total embed size; split at section 5 if approaching 5800 chars

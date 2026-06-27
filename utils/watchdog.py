@@ -478,14 +478,106 @@ def check_env_git_tracking() -> List[str]:
     return violations
 
 
+# ── Check 7 — Dev agent output scanner (called from dev_agent.py also) ────────
+# These are re-exported so dev_agent.py can use the same logic before file writes.
+
+_DANGEROUS_CODE = re.compile(
+    r"\b(os\.system|subprocess\.(?:run|Popen|call|check_output)|"
+    r"eval\s*\(|exec\s*\()\s*\("
+)
+
+
+def scan_dev_agent_output(
+    response_str: str,
+    file_entries: List[dict],
+    original_files: Dict[str, str],
+    secrets: Dict[str, str],
+) -> List[str]:
+    """
+    Scan Claude API response for security issues before any file write.
+    Returns violation strings (empty = safe).
+    """
+    violations = []
+
+    # 1. Secret value in response
+    for var_name, val in secrets.items():
+        if val in response_str:
+            violations.append(f"Response contains value of **{var_name}** — key exposure risk")
+
+    for entry in file_entries:
+        path    = entry.get("path", "")
+        content = entry.get("content", "")
+
+        # 2. Directory traversal
+        if "../" in path or path.startswith("/"):
+            violations.append(f"Path traversal in generated path: `{path}`")
+
+        # 3. File size guard — 500 KB
+        size = len(content.encode())
+        if size > 500 * 1024:
+            violations.append(f"`{path}` is {size // 1024}KB — exceeds 500KB limit")
+
+        # 4. Dangerous patterns injected (not present in original)
+        original = original_files.get(path, "")
+        new_hits = set(_DANGEROUS_CODE.findall(content))
+        old_hits = set(_DANGEROUS_CODE.findall(original))
+        injected = new_hits - old_hits
+        if injected:
+            violations.append(f"Dangerous pattern injected in `{path}`: {injected}")
+
+    return violations
+
+
+# ── Check 8 — Git history author audit (hourly) ───────────────────────────────
+
+_ALLOWED_COMMIT_PREFIXES = [
+    "dev-agent:",
+    "Merge dev-agent/",
+    "single-writer rule",
+    "security watchdog",
+    "naming audit",
+    "dev agent",
+]
+
+
+def check_git_history() -> List[str]:
+    """
+    Scan the last 10 commits for unexpected authors or commit messages.
+    An 'unexpected' commit is one not from dev-agent or manual work.
+    Returns violation strings.
+    """
+    violations = []
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "-10", "--format=%H|%an|%s"],
+            cwd=str(PROJECT_ROOT),
+            capture_output=True, text=True, timeout=15,
+        )
+        for line in result.stdout.strip().splitlines():
+            parts = line.split("|", 2)
+            if len(parts) < 3:
+                continue
+            commit_hash, author, subject = parts
+            # Flag commits not from known authors
+            known_authors = {"silent", "silentgsxr", "dev-agent", "Claude Sonnet 4.6"}
+            if not any(k in author.lower() for k in known_authors):
+                violations.append(
+                    f"Unexpected commit author: **{author}** — `{commit_hash[:8]}` {subject[:60]}"
+                )
+    except Exception as exc:
+        _log("ERROR", f"Git history check failed: {exc}")
+    return violations
+
+
 # ── Main watchdog class ───────────────────────────────────────────────────────
 
 class Watchdog:
     def __init__(self) -> None:
-        self._running  = True
-        self._cycle    = 0
-        self._tracker  = _AlertTracker()
-        self._secrets  = _load_secrets()
+        self._running      = True
+        self._cycle        = 0
+        self._tracker      = _AlertTracker()
+        self._secrets      = _load_secrets()
+        self._last_git_check = 0   # epoch seconds — run hourly
 
         # Capture config file baseline (mtime + size) at startup
         self._config_baseline: Dict[str, Tuple[float, int]] = {}
@@ -618,8 +710,24 @@ class Watchdog:
         if not env_issues:
             _log("CLEAN", f"[{self._cycle}] [{ts}] Check 6 PASS — .env secure")
 
+        # 7 — Git history author audit (hourly)
+        now_epoch = time.time()
+        if now_epoch - self._last_git_check >= 3600:
+            self._last_git_check = now_epoch
+            git_issues = check_git_history()
+            if git_issues:
+                issues += 1
+            self._handle(
+                "git_history", git_issues, "CRITICAL",
+                "Unexpected Commit Author Detected",
+                "A commit was found from an unrecognized author. "
+                "Review git log immediately.",
+            )
+            if not git_issues:
+                _log("CLEAN", f"[{self._cycle}] [{ts}] Check 7 PASS — git history clean")
+
         if issues == 0:
-            _log("CLEAN", f"[{self._cycle}] [{ts}] All 6 checks passed — system healthy")
+            _log("CLEAN", f"[{self._cycle}] [{ts}] All checks passed — system healthy")
 
 
 if __name__ == "__main__":

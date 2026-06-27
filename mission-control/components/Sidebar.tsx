@@ -6,6 +6,7 @@ const NAV = [
   { href: "/memory", label: "Intelligence", glyph: "✦" },
   { href: "/docs", label: "Research", glyph: "❡" },
   { href: "/finance", label: "Finance", glyph: "$" },
+  { href: "/dev",     label: "Dev Queue", glyph: "⌬" },
 ];
 
 export function Sidebar() {
