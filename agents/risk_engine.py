@@ -26,6 +26,12 @@ from typing import Optional
 
 from config import risk_config as cfg
 
+try:
+    from utils.agent_brain import AgentBrain as _AgentBrain
+    _brain = _AgentBrain("VAULT", "#c02a44")
+except Exception:
+    _brain = None
+
 
 @dataclass
 class Trade:
@@ -100,6 +106,20 @@ class RiskEngine:
         daily_loss_limit = self.session.starting_balance * cfg.DAILY_MAX_LOSS_PCT
         if self.session.daily_pnl <= -daily_loss_limit:
             self._halt("daily max loss circuit breaker hit")
+            if _brain:
+                try:
+                    _brain.suggest(
+                        title="Circuit breaker hit — daily loss limit reached",
+                        reasoning=(
+                            f"Daily P&L hit the {cfg.DAILY_MAX_LOSS_PCT * 100:.1f}% max loss "
+                            "threshold. Session halted. Review entry criteria before tomorrow."
+                        ),
+                        category="Risk",
+                        priority=8,
+                        flags=["critical", "time_sensitive"],
+                    )
+                except Exception:
+                    pass
             return self._reject("daily max loss circuit breaker hit")
 
         dollar_risk = self.session.current_balance * cfg.PER_TRADE_RISK_PCT
@@ -177,6 +197,22 @@ class RiskEngine:
             self.session.consecutive_losses += 1
         else:
             self.session.consecutive_losses = 0
+
+        # Suggest on consecutive loss pattern (2+ losses)
+        if self.session.consecutive_losses >= 2 and _brain:
+            try:
+                _brain.suggest(
+                    title=f"Consecutive loss pattern — {self.session.consecutive_losses} in a row",
+                    reasoning=(
+                        f"VAULT recorded {self.session.consecutive_losses} consecutive losses "
+                        "this session. Cooldown may engage soon. Review setup quality."
+                    ),
+                    category="Trading",
+                    priority=7,
+                    flags=["time_sensitive"],
+                )
+            except Exception:
+                pass
 
         daily_loss_limit = self.session.starting_balance * cfg.DAILY_MAX_LOSS_PCT
         if self.session.daily_pnl <= -daily_loss_limit:

@@ -78,12 +78,70 @@ BACKGROUND PROCESSES (start manually each session):
 
 ---
 
-## Current state — session ended 2026-06-26
+## Current state — session ended 2026-06-26 (evening)
+
+### Suggestion Intelligence Layer — IN PROGRESS
+
+**Completed (Steps 1–6):**
+| Step | File | Status |
+|---|---|---|
+| 1 — Shared Brain | `utils/agent_brain.py` | ✅ Done |
+| 2 — Data Schema + Flask Routes | `data/suggestions.json` + 7 routes in `dashboard/app.py` | ✅ Done |
+| 3 — Suggestion Agent | `utils/suggestion_agent.py` + `deploy/com.silent.suggestion.plist` | ✅ Done |
+| 4 — Agent Self-Hooks | risk_engine, signal_agent, watchdog, dev_agent | ✅ Done |
+| 5 — Tab Tracking | `components/TabTracker.tsx` + Flask analytics routes | ✅ Done |
+| 6 — Whiteboard UI | `app/suggestions/page.tsx` + `SuggestionBoard.tsx` | ✅ Done |
+
+**Remaining (Steps 7–10) — start here next session:**
+| Step | What to build | Notes |
+|---|---|---|
+| 7 — Collapsible Sidebar | Full flip-card sidebar on suggestions page | QueueSidebar is embedded but not the full flip-card spec from the prompt |
+| 8 — Sidebar Nav | Add Suggestions to `components/Sidebar.tsx` with badge counter | Simple — add one nav entry, badge polls `/api/suggestions/stats` every 30s |
+| 9 — Discord Routing | Update all utils to use 6 dedicated webhook env vars | watchdog.py uses `DISCORD_WEBHOOK_URL`, daitaos.py, dev_agent.py same |
+| 10 — Finalize | npm build verify + final docs + commit | Build already passes, just needs cleanup |
+
+**Resume prompt for next session:**
+```
+Continue the Suggestion Intelligence Layer for ClawOps.
+Steps 1–6 are complete and committed to master.
+Pick up at Step 7 — Collapsible Sidebar (full flip-card style per spec).
+Then Step 8 (sidebar nav badge), Step 9 (Discord routing cleanup),
+Step 10 (final build + commit).
+See docs/PROGRESS.md Step 17 for full detail on what's done.
+```
+
+### Suggestion layer — key files created this session
+- `utils/agent_brain.py` — shared brain module (AgentBrain class)
+- `utils/suggestion_agent.py` — autonomous suggestion agent (--dry-run tested)
+- `deploy/com.silent.suggestion.plist` — LaunchAgent (5AM + 5:30PM AZ)
+- `data/suggestions.json` — suggestion store (empty list, ready to populate)
+- `data/tab_usage.json` — (auto-created on first tab event)
+- `mission-control/components/TabTracker.tsx` — client tab tracking
+- `mission-control/app/suggestions/page.tsx` — server shell
+- `mission-control/app/suggestions/SuggestionBoard.tsx` — full client board
+
+### Install suggestion LaunchAgent (when ready)
+```
+cp deploy/com.silent.suggestion.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.silent.suggestion.plist
+```
+
+### .env — needs 6 new webhook vars added manually
+Add these to `/Users/silent/trading-agent 2/.env`:
+```
+DISCORD_MORNING_BRIEF_WEBHOOK=
+DISCORD_TRADE_ALERTS_WEBHOOK=
+DISCORD_WATCHDOG_WEBHOOK=
+DISCORD_DEV_AGENT_WEBHOOK=
+DISCORD_SUGGESTIONS_WEBHOOK=
+DISCORD_AGENT_ACTIVITY_WEBHOOK=
+```
+(Discord routing cleanup in Step 9 will wire these up in code)
 
 ### Dev agent status
-- **Dry run confirmed working** — all 6 safety gates pass, context gathered correctly
+- **Dry run confirmed working** — all 6 safety gates pass
 - **Live run blocked** — Anthropic API account has no credits
-- **TICKET-001 queued** — "Add agent nickname badges to AgentCard" — status: open, ready to run
+- **TICKET-001 queued** — status: open, ready to run once credits added
 - **To run live:**
   ```
   cd "/Users/silent/trading-agent 2"
@@ -94,7 +152,7 @@ BACKGROUND PROCESSES (start manually each session):
 
 ### Anthropic API key
 - Fresh key is in `/Users/silent/trading-agent 2/.env` as `ANTHROPIC_API_KEY`
-- Account needs credits added at `console.anthropic.com` → Plans & Billing
+- Account needs credits at `console.anthropic.com` → Plans & Billing
 - Key was set via terminal (not pasted in chat) — safe
 
 ### .env location
@@ -107,7 +165,8 @@ Never committed to git. Watchdog checks this every cycle.
 ### LaunchAgents installed
 - `com.silent.watchdog.plist` — copied to ~/Library/LaunchAgents/ ✓
 - `com.silent.devagent.plist` — copied to ~/Library/LaunchAgents/ ✓
-- Both need `launchctl load` if not already loaded (Sage blocks this — user must run it)
+- `com.silent.suggestion.plist` — in `deploy/`, not yet installed
+- All need `launchctl load` if not already loaded (Sage blocks this — user must run it manually)
 
 ---
 

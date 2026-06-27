@@ -69,6 +69,12 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 from config import risk_config as cfg
 
+try:
+    from utils.agent_brain import AgentBrain as _AgentBrain
+    _brain = _AgentBrain("WATCHDOG", "#f2b84b")
+except Exception:
+    _brain = None
+
 _ET = ZoneInfo("America/New_York")
 _AZ = ZoneInfo("America/Phoenix")
 
@@ -678,6 +684,21 @@ class Watchdog:
         writes = check_config_writes(self._config_baseline)
         if writes:
             issues += 1
+            if _brain:
+                try:
+                    _brain.suggest(
+                        title="🚨 Config modified during active session",
+                        reasoning=(
+                            "A risk configuration file changed while the runner is active. "
+                            f"Details: {writes[0][:200]}"
+                        ),
+                        category="Security",
+                        priority=10,
+                        flags=["critical", "time_sensitive", "locked_file"],
+                        affected_files=["config/risk_config.py", "config/strategy_config.py"],
+                    )
+                except Exception:
+                    pass
         self._handle(
             "config_write", writes, "CRITICAL",
             "Config File Modified During Session",
@@ -710,6 +731,25 @@ class Watchdog:
         )
         if not env_issues:
             _log("CLEAN", f"[{self._cycle}] [{ts}] Check 6 PASS — .env secure")
+
+        # 6b — API key age check (suggest rotation if .env older than 30 days)
+        env_path = PROJECT_ROOT / ".env"
+        if env_path.exists() and _brain:
+            try:
+                age_days = (time.time() - env_path.stat().st_mtime) / 86400
+                if age_days > 30:
+                    _brain.suggest(
+                        title="⚠️ API key rotation recommended",
+                        reasoning=(
+                            f".env file has not been updated in {int(age_days)} days. "
+                            "Rotate ANTHROPIC_API_KEY and any other secrets as a security practice."
+                        ),
+                        category="Security",
+                        priority=9,
+                        flags=["time_sensitive"],
+                    )
+            except Exception:
+                pass
 
         # 7 — Git history author audit (hourly)
         now_epoch = time.time()

@@ -33,6 +33,12 @@ from typing import Optional
 
 from config import strategy_config as cfg
 
+try:
+    from utils.agent_brain import AgentBrain as _AgentBrain
+    _brain = _AgentBrain("HAWK", "#3ddc97")
+except Exception:
+    _brain = None
+
 
 def _time_of(bar: dict) -> time:
     return bar["timestamp"].time()
@@ -88,6 +94,21 @@ class ORBSignalAgent:
 
         # Outside the trade window: no new signals, even on a valid breakout.
         if bar_time >= self._trade_window_end:
+            # If OR locked but no signal emitted by end of window, suggest review
+            if self.or_locked and not self.signal_emitted_today and _brain:
+                try:
+                    _brain.suggest(
+                        title="No breakout signal in trade window",
+                        reasoning=(
+                            f"OR formed ({self.or_high:.2f}/{self.or_low:.2f}) but "
+                            "no confirmed breakout before window close. "
+                            "Range may be too wide or volume conditions not met."
+                        ),
+                        category="Trading",
+                        priority=4,
+                    )
+                except Exception:
+                    pass
             return None
 
         if self.signal_emitted_today:

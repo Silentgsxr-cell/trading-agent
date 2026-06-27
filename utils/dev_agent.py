@@ -50,6 +50,12 @@ _AZ = ZoneInfo("America/Phoenix")
 
 WEBHOOK_URL     = os.getenv("DISCORD_WEBHOOK_URL", "")
 ANTHROPIC_KEY   = os.getenv("ANTHROPIC_API_KEY", "")
+
+try:
+    from utils.agent_brain import AgentBrain as _AgentBrain
+    _brain = _AgentBrain("DEV_AGENT", "#5c6bc0")
+except Exception:
+    _brain = None
 TICKETS_FILE    = PROJECT_ROOT / "data" / "tickets.json"
 AUDIT_LOG       = PROJECT_ROOT / "logs" / "dev_agent_audit.log"
 MAX_TICKETS     = 3
@@ -497,6 +503,24 @@ def run_ticket(ticket: dict, db: dict, dry_run: bool = False) -> bool:
         return False
 
     _log("START", f"Processing {tid}: {title}")
+
+    # Post planning suggestion so the change is logged before any write
+    if _brain:
+        try:
+            _brain.suggest(
+                title=f"Dev Agent planning: {title}",
+                reasoning=(
+                    f"Dev Agent is about to execute ticket {tid}. "
+                    f"Planned files: {ticket.get('allowed_paths', [])}. "
+                    "This entry serves as the pre-execution confirmation log."
+                ),
+                category="Agents",
+                priority=5,
+                affected_files=ticket.get("allowed_paths", []),
+            )
+        except Exception:
+            pass
+
     _update_ticket(db, tid, {
         "status":     "in_progress",
         "started_at": datetime.now(_AZ).isoformat(),

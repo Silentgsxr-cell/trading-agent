@@ -38,7 +38,7 @@
     {
       "id": "other",
       "name": "Other Debt",
-      "balance": 5000,
+      "balance": 500,
       "original": 5000
     }
   ],
@@ -48,13 +48,13 @@
       {
         "id": "housing",
         "name": "Housing",
-        "budget": 0,
+        "budget": 750,
         "spent": 0
       },
       {
         "id": "food",
         "name": "Food",
-        "budget": 0,
+        "budget": 250,
         "spent": 0
       },
       {

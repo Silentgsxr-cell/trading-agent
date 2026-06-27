@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Sidebar } from "@/components/Sidebar";
 import { MarketStrip } from "@/components/MarketStrip";
+import { TabTracker } from "@/components/TabTracker";
 
 export const metadata: Metadata = {
   title: "ClawOps Control Center",
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Sidebar />
           <div className="flex min-h-screen flex-1 flex-col">
             <MarketStrip />
+            <TabTracker />
             <main className="flex-1 px-5 py-5">{children}</main>
           </div>
         </div>

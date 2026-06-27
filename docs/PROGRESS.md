@@ -256,13 +256,109 @@ New ticket form posts to Flask `/api/tickets` — auto-assigns TICKET-00X ID, va
 
 ---
 
+---
+
+### 16. Agent Card Flip Cards — `mission-control/components/AgentCard.tsx`
+
+CSS-only 3D flip on every agent card in the Cockpit:
+- **Front**: status dot, name, governor chip, role, summary, blockers, file/line count
+- **Back**: large codename, ring badge (Core/Macro/News/Execution) with color coding, full architecture description, "Output →" feeds-into line
+- Pure CSS — no JavaScript, no "use client" — `perspective + preserve-3d + :hover rotateY(180deg)`
+- Ring badge colors: Core=green, Macro=blue, News=amber, Execution=maroon
+- `description` and `feedsInto` fields added to all 7 agents in `lib/agents.ts`
+- "hover to flip" watermark on each front face
+- Blank white page fix: cleared stale `.next` cache (webpack chunk 991.js mismatch)
+
+---
+
+### 17. Suggestion Intelligence Layer — `utils/agent_brain.py` (PARTIAL — in progress)
+
+Major multi-step feature. Steps 1–6 complete, Steps 7–10 remaining.
+
+**Step 1 — Shared Brain Module** ✅ `utils/agent_brain.py`
+- `AgentBrain(agent_id, agent_color)` — single import interface for all agents
+- `suggest()` — creates suggestion card, appends to `data/suggestions.json`
+  - Hard cap: 3 suggestions per agent per calendar day
+  - Priority ≥ 9 override (always posts regardless of cap)
+  - Auto-detects blocked paths → adds "locked_file" flag + ⚠️ to title
+  - Posts to `#suggestions` Discord channel for priority ≥ 9
+- `urgent_alert()` — routes to one of 6 Discord channel webhooks by name
+- `log_reasoning()` — appends `{ts} | {agent_id} | {confidence} | {thought}` to `logs/agent_reasoning.log`
+- 6 Discord channels: morning_brief, trade_alerts, watchdog, dev_agent, suggestions, agent_activity
+
+**Step 2 — Suggestion Data Schema + Flask Routes** ✅
+- `data/suggestions.json` — initialized as empty list
+- 7 Flask routes added to `dashboard/app.py`:
+  - `GET /api/suggestions` — all cards
+  - `POST /api/suggestions` — create (from agent_brain)
+  - `PATCH /api/suggestions/<id>` — update title/reasoning/progress/edits
+  - `POST /api/suggestions/<id>/approve-dev` — create dev ticket, set status=dev_queue
+  - `POST /api/suggestions/<id>/approve-silent` — set status=silent_queue
+  - `POST /api/suggestions/<id>/discard` — requires archive_reason
+  - `GET /api/suggestions/stats` — counts by status + agent
+- Also fixed missing `import json` in app.py (latent bug)
+
+**Step 3 — Suggestion Agent** ✅ `utils/suggestion_agent.py`
+- Reads 9 data sources: journal.csv, session.json, decisions.jsonl, tickets.json, suggestions.json, finance.json, watchdog.log (last 20 lines), tab_usage.json, agents/ stub scan
+- Each source truncated to 1000 chars — controls token cost
+- ONE Claude API call (claude-sonnet-4-6, max_tokens=2000, JSON-only output)
+- Posts suggestions via AgentBrain, routes cycle summary to Discord
+- `--dry-run` flag: skips API call, logs would-post items
+- `deploy/com.silent.suggestion.plist` — 5:00 AM + 5:30 PM AZ, KeepAlive=false
+  Install: `cp deploy/com.silent.suggestion.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.silent.suggestion.plist`
+
+**Step 4 — Agent Self-Suggestion Hooks** ✅
+All hooks wrapped in `try/except` — brain failure never breaks agent logic.
+- `agents/risk_engine.py` — record_close(): consecutive losses ≥ 2 → priority=7; circuit breaker → priority=8 "critical"
+- `agents/signal_agent.py` — on_bar(): OR locked + no signal by window end → priority=4
+- `utils/watchdog.py` — config modified during session → priority=10 "critical"; .env age > 30 days → priority=9
+- `utils/dev_agent.py` — before ticket execution: posts planning suggestion (priority=5) as confirmation log
+
+**Step 5 — Tab Usage Tracking** ✅
+- `mission-control/components/TabTracker.tsx` — "use client", tracks pathname changes
+  - On route change: POSTs previous tab name + duration_ms to `/api/analytics/tab`
+  - Mounted in `app/layout.tsx` — covers all pages automatically
+- Flask routes: `POST /api/analytics/tab`, `GET /api/analytics/tabs`
+- `data/tab_usage.json` — `{tab_counts, last_updated, sessions[]}`, keeps last 1000 sessions
+- Feeds suggestion agent: knows which tabs you actually use vs ignore
+
+**Step 6 — Whiteboard UI** ✅ `mission-control/app/suggestions/`
+- `page.tsx` — server component shell with `force-dynamic`
+- `SuggestionBoard.tsx` — full client component:
+  - Cork board texture: `#8B6914` base + 4-layer CSS gradient (fiber lines + radial highlights)
+  - Header: title + unreviewed iOS badge + agent avatar strip + category chips + sort toggle
+  - Agent avatar strip: circular avatars with color glow, click to filter, open-count badge
+  - Sticky note cards: agent-colored background at 15% opacity, full-color header strip
+  - Flag emojis displayed prominently (⚠️🚨🔴🔧🔑⏰)
+  - Priority ≥ 9: `animate-riskPulse` red border + "⚠️ REQUIRES YOUR ATTENTION" banner
+  - Inline editing: title + reasoning become contentEditable on "Edit" click, PATCH on blur
+  - Action buttons: Dev (blue #2196f3), Silent (maroon #8B1A1A), Edit (grey), Discard (✕)
+  - Discard requires reason via modal (required field)
+  - QueueSidebar component embedded — Dev / Silent tabs with Active / Archive sub-tabs
+  - Silent queue items: draggable 0–100 progress slider, auto-completes at 100%
+  - Dev queue items: shows linked ticket ID
+  - Archive tab: completed (green) + discarded (grey) with reason always shown
+  - Sidebar toggle button (‹/›) on right edge
+- Build passes ✅ — `/suggestions` route included in build output
+
+**Steps 7–10 — NOT YET DONE:**
+- Step 7: Collapsible sidebar (QueueSidebar is embedded in SuggestionBoard but the full flip-card sidebar spec with flip animation is not built separately)
+- Step 8: Sidebar nav — Suggestions link not yet added to `Sidebar.tsx`
+- Step 9: Discord routing cleanup — existing utils still use `DISCORD_WEBHOOK_URL` instead of 6 dedicated webhooks
+- Step 10: Final build verification, PROGRESS.md / HANDOFF.md final update, commit + push
+
+---
+
 ## What's Next
 
-1. **Add Anthropic API credits** — `console.anthropic.com` → Plans & Billing
-2. **Run TICKET-001 live** — `python3 utils/watchdog.py & && python3 utils/dev_agent.py`
-3. **Webull data agent** — wire up real bar + options chain data to EvalContext (DataOS)
-4. **Calendar tab** — trading schedule, earnings dates, FOMC, planned session days
-5. **Flip cards** — AgentCard CSS 3D flip (paused from earlier this session)
+1. **Complete suggestion layer Steps 7–10** (next session):
+   - Step 7: Full collapsible sidebar with flip cards (Dev/Silent) — currently embedded, not flip-card style
+   - Step 8: Add Suggestions to Sidebar.tsx nav with badge counter
+   - Step 9: Discord routing cleanup (6 dedicated webhooks across all utils)
+   - Step 10: Final build + commit
+2. **Add Anthropic API credits** — `console.anthropic.com` → Plans & Billing
+3. **Run TICKET-001 live** once credits added
+4. **Webull data agent** — wire DataOS to real bar + options chain data
+5. **Calendar tab** — trading schedule, earnings, FOMC
 6. **Paper execution** — `agents/execution_agent.py` wired to fill simulation
-7. **Strike selection** — `agents/strategist.py` built out
-8. **Monthly budget reset** — Finance tab: historical month-over-month tracking
+7. **Strike selection** — `agents/strategist.py`

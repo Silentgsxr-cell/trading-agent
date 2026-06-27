@@ -19,6 +19,7 @@ POST /api/status/reset  — Reset session for a new trading day
 
 import sys
 import os
+import json
 
 _HERE = os.path.dirname(os.path.abspath(__file__))   # dashboard/
 _ROOT = os.path.dirname(_HERE)                        # project root
@@ -421,6 +422,257 @@ def api_ticket_revert(ticket_id: str):
         t['smoke_test_passed'] = None
         _save_ticket_db(db)
         return jsonify({'success': True, 'ticket': t})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── API: Suggestions ────────────────────────────────────────────────────────
+
+SUGGESTIONS_FILE = os.path.join(_ROOT, "data", "suggestions.json")
+
+
+def _load_suggestions() -> list:
+    if not os.path.exists(SUGGESTIONS_FILE):
+        return []
+    with open(SUGGESTIONS_FILE) as f:
+        data = json.load(f)
+    return data if isinstance(data, list) else []
+
+
+def _save_suggestions(cards: list) -> None:
+    with open(SUGGESTIONS_FILE, "w") as f:
+        json.dump(cards, f, indent=2, default=str)
+
+
+def _next_sug_id(cards: list) -> str:
+    import re as _re
+    nums = [int(m.group(1)) for c in cards for m in [_re.match(r"SUG-(\d+)", c.get("id", ""))] if m]
+    return f"SUG-{max(nums, default=0) + 1:03d}"
+
+
+@app.route('/api/suggestions', methods=['GET'])
+def api_suggestions_get():
+    try:
+        return jsonify(_load_suggestions())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/suggestions', methods=['POST'])
+def api_suggestions_post():
+    data = request.get_json(force=True) or {}
+    try:
+        cards = _load_suggestions()
+        now = _dt.datetime.now().isoformat()
+        card = {
+            "id":              _next_sug_id(cards),
+            "agent_id":        str(data.get("agent_id", "UNKNOWN")).upper(),
+            "agent_color":     str(data.get("agent_color", "#5b6680")),
+            "agent_avatar":    str(data.get("agent_avatar", "circle")),
+            "title":           str(data.get("title", "")).strip(),
+            "reasoning":       str(data.get("reasoning", "")).strip(),
+            "category":        str(data.get("category", "UI")),
+            "priority":        int(data.get("priority", 5)),
+            "flags":           list(data.get("flags", [])),
+            "flag_emojis":     str(data.get("flag_emojis", "")),
+            "affected_files":  list(data.get("affected_files", [])),
+            "has_locked_files": bool(data.get("has_locked_files", False)),
+            "status":          "open",
+            "queue":           None,
+            "completed_by":    None,
+            "archive_reason":  "",
+            "progress_pct":    0,
+            "dev_ticket_id":   None,
+            "user_edits":      "",
+            "created_at":      now,
+            "updated_at":      now,
+            "archived_at":     None,
+            "discord_posted":  bool(data.get("discord_posted", False)),
+            "cycle_id":        str(data.get("cycle_id", "")),
+        }
+        if not card["title"]:
+            return jsonify({'error': 'title is required'}), 400
+        cards.append(card)
+        _save_suggestions(cards)
+        return jsonify({'success': True, 'suggestion': card}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/suggestions/<sug_id>', methods=['PATCH'])
+def api_suggestion_patch(sug_id: str):
+    data = request.get_json(force=True) or {}
+    try:
+        cards = _load_suggestions()
+        sid = sug_id.upper()
+        card = next((c for c in cards if c.get("id", "").upper() == sid), None)
+        if card is None:
+            return jsonify({'error': f'{sug_id} not found'}), 404
+        # Updateable fields only — status/queue changes go through dedicated routes
+        for field in ("title", "reasoning", "user_edits", "progress_pct"):
+            if field in data:
+                card[field] = data[field]
+        card["updated_at"] = _dt.datetime.now().isoformat()
+        _save_suggestions(cards)
+        return jsonify({'success': True, 'suggestion': card})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/suggestions/<sug_id>/approve-dev', methods=['POST'])
+def api_suggestion_approve_dev(sug_id: str):
+    """Create a dev ticket from the suggestion and move it to dev_queue."""
+    data = request.get_json(force=True) or {}
+    try:
+        cards  = _load_suggestions()
+        sid    = sug_id.upper()
+        card   = next((c for c in cards if c.get("id", "").upper() == sid), None)
+        if card is None:
+            return jsonify({'error': f'{sug_id} not found'}), 404
+        if card['status'] not in ('open',):
+            return jsonify({'error': f"Suggestion is '{card['status']}', cannot approve"}), 400
+
+        # Create a dev ticket from this suggestion
+        db = _load_ticket_db()
+        allowed = card.get("affected_files", [])
+        ticket = {
+            **TICKET_DEFAULTS,
+            "id":                _next_ticket_id(db["tickets"]),
+            "title":             card["title"],
+            "description":       card["reasoning"],
+            "what_to_complete":  card.get("user_edits") or card["reasoning"],
+            "what_done_looks_like": f"Suggestion {card['id']} implemented",
+            "connectors_needed": [],
+            "restrictions":      [],
+            "allowed_paths":     allowed,
+            "blocked_paths":     TICKET_BLOCKED_PATHS,
+            "priority":          "high" if card["priority"] >= 8 else "medium",
+            "complexity":        "complex" if card["has_locked_files"] else "simple",
+            "complexity_color":  "#ff5252" if card["has_locked_files"] else "#00e676",
+            "status":            "open",
+            "created_at":        _dt.datetime.now().isoformat(),
+            "approval_gate":     "auto",
+            "source_suggestion": card["id"],
+        }
+        db["tickets"].append(ticket)
+        _save_ticket_db(db)
+
+        card["status"]        = "dev_queue"
+        card["queue"]         = "dev"
+        card["dev_ticket_id"] = ticket["id"]
+        card["updated_at"]    = _dt.datetime.now().isoformat()
+        _save_suggestions(cards)
+        return jsonify({'success': True, 'suggestion': card, 'ticket': ticket})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/suggestions/<sug_id>/approve-silent', methods=['POST'])
+def api_suggestion_approve_silent(sug_id: str):
+    try:
+        cards = _load_suggestions()
+        sid   = sug_id.upper()
+        card  = next((c for c in cards if c.get("id", "").upper() == sid), None)
+        if card is None:
+            return jsonify({'error': f'{sug_id} not found'}), 404
+        card["status"]     = "silent_queue"
+        card["queue"]      = "silent"
+        card["updated_at"] = _dt.datetime.now().isoformat()
+        _save_suggestions(cards)
+        return jsonify({'success': True, 'suggestion': card})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/suggestions/<sug_id>/discard', methods=['POST'])
+def api_suggestion_discard(sug_id: str):
+    data = request.get_json(force=True) or {}
+    archive_reason = str(data.get("archive_reason", "")).strip()
+    if not archive_reason:
+        return jsonify({'error': 'archive_reason is required when discarding'}), 400
+    try:
+        cards = _load_suggestions()
+        sid   = sug_id.upper()
+        card  = next((c for c in cards if c.get("id", "").upper() == sid), None)
+        if card is None:
+            return jsonify({'error': f'{sug_id} not found'}), 404
+        card["status"]         = "discarded"
+        card["archive_reason"] = archive_reason
+        card["archived_at"]    = _dt.datetime.now().isoformat()
+        card["updated_at"]     = _dt.datetime.now().isoformat()
+        _save_suggestions(cards)
+        return jsonify({'success': True, 'suggestion': card})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/suggestions/stats', methods=['GET'])
+def api_suggestions_stats():
+    try:
+        cards = _load_suggestions()
+        by_status: dict = {}
+        by_agent:  dict = {}
+        unreviewed = 0
+        for c in cards:
+            s = c.get("status", "open")
+            by_status[s] = by_status.get(s, 0) + 1
+            a = c.get("agent_id", "UNKNOWN")
+            by_agent[a]  = by_agent.get(a, 0) + 1
+            if s == "open":
+                unreviewed += 1
+        return jsonify({
+            "total":      len(cards),
+            "unreviewed": unreviewed,
+            "by_status":  by_status,
+            "by_agent":   by_agent,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ─── API: Tab Analytics ───────────────────────────────────────────────────────
+
+TAB_USAGE_FILE = os.path.join(_ROOT, "data", "tab_usage.json")
+
+
+def _load_tab_usage() -> dict:
+    if not os.path.exists(TAB_USAGE_FILE):
+        return {"tab_counts": {}, "last_updated": "", "sessions": []}
+    with open(TAB_USAGE_FILE) as f:
+        return json.load(f)
+
+
+def _save_tab_usage(data: dict) -> None:
+    with open(TAB_USAGE_FILE, "w") as f:
+        json.dump(data, f, indent=2, default=str)
+
+
+@app.route('/api/analytics/tab', methods=['POST'])
+def api_analytics_tab():
+    body = request.get_json(force=True) or {}
+    tab  = str(body.get("tab", "")).strip()
+    if not tab:
+        return jsonify({'error': 'tab is required'}), 400
+    try:
+        usage = _load_tab_usage()
+        usage["tab_counts"][tab] = usage["tab_counts"].get(tab, 0) + 1
+        usage["last_updated"]    = _dt.datetime.now().isoformat()
+        session_entry = {
+            "tab":         tab,
+            "timestamp":   str(body.get("timestamp", _dt.datetime.now().isoformat())),
+            "duration_ms": int(body.get("duration_ms", 0)),
+        }
+        usage["sessions"] = usage["sessions"][-999:] + [session_entry]
+        _save_tab_usage(usage)
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analytics/tabs', methods=['GET'])
+def api_analytics_tabs():
+    try:
+        return jsonify(_load_tab_usage())
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

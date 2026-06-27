@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.silent.suggestion</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/silent/trading-agent 2/utils/suggestion_agent.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/silent/trading-agent 2</string>
+
+  <!-- 5:00 AM and 5:30 PM Arizona MST (UTC-7 year-round, no DST) -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict>
+      <key>Hour</key>   <integer>5</integer>
+      <key>Minute</key> <integer>0</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>   <integer>17</integer>
+      <key>Minute</key> <integer>30</integer>
+    </dict>
+  </array>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/silent/trading-agent 2/logs/suggestion_agent.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/Users/silent/trading-agent 2/logs/suggestion_agent_error.log</string>
+
+  <key>Nice</key>
+  <integer>10</integer>
+</dict>
+</plist>
