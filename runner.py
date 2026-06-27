@@ -2,11 +2,15 @@
 """
 runner.py — ClawOps live agent loop.
 
-Orchestrates:  yfinance 2-min bars → ORBSignalAgent → RiskEngine → (stub) Execution
-Writes state files consumed by Mission Control at localhost:3000:
-  state/session.json     live session snapshot (overwritten each poll)
-  state/decisions.jsonl  decision audit log (append-only)
-  state/signals.jsonl    raw signal feed (append-only)
+Orchestrates:
+  yfinance 2-min bars → Signaos (multi-strategy signal engine)
+                       → RiskEngine (veto + sizing)
+                       → state/ files (Mission Control feed)
+
+Writes:
+  state/session.json     live session snapshot (atomic overwrite each poll)
+  state/decisions.jsonl  full decision audit log (append-only)
+  state/signals.jsonl    all Signaos signal outputs (append-only)
 
 Usage:
   python3 runner.py
@@ -21,16 +25,16 @@ import time
 import signal as _signal
 from datetime import datetime, time as dtime
 from pathlib import Path
-from zoneinfo import ZoneInfo
-
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import yfinance as yf
 
 ROOT = Path(__file__).parent
 sys.path.insert(0, str(ROOT))
 
-from agents.signal_agent import ORBSignalAgent
+from agents.signaos import Signaos, RankedSignal
+from agents.strategies import EvalContext
 from agents.risk_engine import RiskEngine
 from config import risk_config as cfg
 from config import strategy_config as scfg
@@ -42,7 +46,7 @@ SESSION_FILE   = STATE_DIR / "session.json"
 DECISIONS_FILE = STATE_DIR / "decisions.jsonl"
 SIGNALS_FILE   = STATE_DIR / "signals.jsonl"
 
-POLL_INTERVAL = 30        # seconds between yfinance polls
+POLL_INTERVAL = 30
 SYMBOL        = scfg.SYMBOL
 
 _MARKET_OPEN  = dtime(9, 30)
@@ -59,7 +63,6 @@ def _now_et() -> datetime:
 
 
 def _et_time(now: datetime) -> dtime:
-    """Return naive local time in ET for simple comparisons."""
     return now.time().replace(tzinfo=None)
 
 
@@ -94,7 +97,6 @@ def write_session(engine: RiskEngine) -> None:
         "openPositions":     len(s.open_positions),
         "tradesToday":       s.trades_opened_today,
     }
-    # Atomic write so Mission Control never reads a partial file.
     tmp = SESSION_FILE.with_suffix(".tmp")
     tmp.write_text(json.dumps(payload, indent=2))
     tmp.replace(SESSION_FILE)
@@ -115,35 +117,30 @@ def log_decision(kind: str, agent: str, message: str, meta: Optional[dict] = Non
     if meta:
         event["meta"] = meta
     _append_jsonl(DECISIONS_FILE, event)
-    print(f"[{agent:12s}] {kind.upper():8s}  {message}")
+    print(f"[{agent:16s}] {kind.upper():8s}  {message}")
 
 
-def log_signal(signal: dict) -> None:
-    out = {
-        **signal,
-        "timestamp": signal["timestamp"].isoformat(),
-    }
-    _append_jsonl(SIGNALS_FILE, out)
+def log_signal(ranked: RankedSignal) -> None:
+    _append_jsonl(SIGNALS_FILE, ranked.to_dict())
 
 
 # ---------------------------------------------------------------------------
 # Data fetcher
 # ---------------------------------------------------------------------------
 
-def fetch_bars(symbol: str) -> list[dict]:
+def fetch_bars(symbol: str) -> list:
     """
-    Pull completed 2-min bars for today from yfinance.
+    Pull completed 2-min bars for today.
     Drops the last bar — it is still forming.
-    Returns bars with naive ET timestamps for the signal agent.
+    Returns bars with naive ET timestamps for the strategy engine.
     """
     try:
         hist = yf.Ticker(symbol).history(period="1d", interval="2m")
         if hist.empty or len(hist) < 2:
             return []
-        hist = hist.iloc[:-1]   # drop forming bar
+        hist = hist.iloc[:-1]
         bars = []
         for ts, row in hist.iterrows():
-            # yfinance returns tz-aware Timestamps; convert to naive ET.
             ts_et = ts.tz_convert(_ET).to_pydatetime().replace(tzinfo=None)
             bars.append({
                 "timestamp": ts_et,
@@ -155,8 +152,23 @@ def fetch_bars(symbol: str) -> list[dict]:
             })
         return bars
     except Exception as exc:
-        print(f"[runner      ] bar fetch error: {exc}")
+        print(f"[runner           ] bar fetch error: {exc}")
         return []
+
+
+def get_spy_bias() -> str:
+    try:
+        hist = yf.Ticker("SPY").history(period="2d", interval="1d")
+        if len(hist) >= 2:
+            closes = list(hist["Close"])
+            pct = (closes[-1] - closes[-2]) / closes[-2] * 100
+            if pct > 0.2:
+                return "Bullish"
+            if pct < -0.2:
+                return "Bearish"
+    except Exception:
+        pass
+    return "Neutral"
 
 
 # ---------------------------------------------------------------------------
@@ -166,28 +178,33 @@ def fetch_bars(symbol: str) -> list[dict]:
 def run() -> None:
     STATE_DIR.mkdir(exist_ok=True)
 
-    now            = _now_et()
-    session_date   = now.strftime("%Y-%m-%d")
+    now          = _now_et()
+    session_date = now.strftime("%Y-%m-%d")
 
-    engine         = RiskEngine(cfg.STARTING_BALANCE)
+    engine  = RiskEngine(cfg.STARTING_BALANCE)
     engine.session.date = session_date
-    signal_agent   = ORBSignalAgent(SYMBOL)
+    signaos = Signaos()
 
     write_session(engine)
-    log_decision("info", "runner", f"ClawOps runner started — {SYMBOL} ORB paper strategy", {
+    log_decision("info", "runner", f"Signaos + ClawOps runner started — {SYMBOL}", {
         "balance": cfg.STARTING_BALANCE,
         "date":    session_date,
+        "strategies": [s.name for s in signaos.strategies],
     })
 
     print(f"\n  ClawOps Runner — {SYMBOL} | {session_date}")
+    print(f"  Strategies: {', '.join(s.name for s in signaos.strategies)}")
     print(f"  Poll: {POLL_INTERVAL}s | State: {STATE_DIR}\n")
 
-    last_bar_ts: Optional[datetime] = None
+    all_bars:     list = []
+    last_bar_ts:  Optional[datetime] = None
+    spy_bias:     str  = "Neutral"
+    spy_last_fetch: Optional[datetime] = None
     running = True
 
     def _shutdown(sig, frame):
         nonlocal running
-        print("\n[runner      ] SIGINT — shutting down cleanly...")
+        print("\n[runner           ] SIGINT — shutting down cleanly...")
         running = False
 
     _signal.signal(_signal.SIGINT,  _shutdown)
@@ -202,52 +219,68 @@ def run() -> None:
             session_date = today
             engine       = RiskEngine(cfg.STARTING_BALANCE)
             engine.session.date = session_date
-            signal_agent.reset_session()
+            signaos.reset_session()
+            all_bars    = []
             last_bar_ts = None
             write_session(engine)
             log_decision("info", "runner", f"New session — {session_date}")
 
         if not _is_market_open(now):
             status = "PRE-MARKET" if _is_pre_market(now) else "CLOSED"
-            print(f"[runner      ] {status} {now.strftime('%H:%M ET')} — sleeping {POLL_INTERVAL}s")
+            print(f"[runner           ] {status} {now.strftime('%H:%M ET')} — sleeping {POLL_INTERVAL}s")
             time.sleep(POLL_INTERVAL)
             continue
 
-        # --- Inside market hours ---
-        bars     = fetch_bars(SYMBOL)
+        # Refresh SPY bias every 5 minutes.
+        if spy_last_fetch is None or (now - spy_last_fetch).seconds >= 300:
+            spy_bias       = get_spy_bias()
+            spy_last_fetch = now
+
+        # Fetch 2-min bars.
+        all_bars = fetch_bars(SYMBOL)
         new_bars = [
-            b for b in bars
+            b for b in all_bars
             if last_bar_ts is None or b["timestamp"] > last_bar_ts
         ]
+        if new_bars:
+            last_bar_ts = new_bars[-1]["timestamp"]
 
-        for bar in new_bars:
-            last_bar_ts = bar["timestamp"]
-            signal = signal_agent.on_bar(bar)
+        # Build context for Signaos.
+        context = EvalContext(
+            now         = now,
+            symbol      = SYMBOL,
+            bars        = all_bars,
+            new_bars    = new_bars,
+            news        = [],       # wired up when News Agent is built
+            spy_bias    = spy_bias,
+            market_data = {},
+        )
 
-            if signal is None:
-                continue
+        # Poll Signaos — get ranked signals this tick.
+        ranked_signals = signaos.poll(context)
 
-            # Signal agent found a breakout — log it and run through risk engine.
-            log_signal(signal)
+        for ranked in ranked_signals:
+            sig = ranked.signal
+            log_signal(ranked)
             log_decision(
-                "signal", "signal_agent",
-                f"ORB breakout {signal['direction'].upper()} {SYMBOL} "
-                f"@ {signal['entry_trigger']:.2f} "
-                f"(vol_ratio={signal['volume_ratio']}, body={signal['body_ratio']})",
-                {
-                    "direction":     signal["direction"],
-                    "entry_trigger": signal["entry_trigger"],
-                    "or_high":       signal["or_high"],
-                    "or_low":        signal["or_low"],
-                    "volume_ratio":  signal["volume_ratio"],
-                    "body_ratio":    signal["body_ratio"],
-                },
+                "signal", f"signaos/{sig.strategy_name}",
+                f"[{ranked.conviction_tier}] {sig.direction.upper()} {sig.ticker} — "
+                f"{sig.reasoning[:80]}",
+                ranked.to_dict(),
             )
 
-            # Placeholder premium: 1 % of underlying price (roughly ATM 0DTE).
-            # Execution agent will supply the real ask when it is built.
-            placeholder_premium = round(signal["entry_trigger"] * 0.01, 2)
-            result = engine.evaluate(signal["direction"], placeholder_premium)
+            # Only route A and S tier to Risk Engine for sizing/approval.
+            if ranked.conviction_tier not in ("S", "A"):
+                log_decision(
+                    "info", "signaos",
+                    f"[{ranked.conviction_tier}] signal logged but not routed "
+                    f"(below A tier, score={ranked.final_score})",
+                )
+                continue
+
+            # Placeholder premium — 1% of price until Execution Agent provides real ask.
+            placeholder_premium = round(sig.metadata.get("entry_trigger", 1.0) * 0.01, 2)
+            result = engine.evaluate(sig.direction, placeholder_premium)
 
             if result["approved"]:
                 log_decision(
@@ -267,7 +300,7 @@ def run() -> None:
 
             write_session(engine)
 
-        # Time-based force-close guard (execution agent not built yet — just logs).
+        # Time-based force-close guard.
         if engine.check_force_close(now) and engine.session.open_positions:
             log_decision(
                 "halt", "risk_engine",
@@ -276,20 +309,20 @@ def run() -> None:
 
         write_session(engine)
 
-        t = now.strftime("%H:%M:%S ET")
+        t   = now.strftime("%H:%M:%S ET")
         bal = engine.session.current_balance
         pnl = engine.session.daily_pnl
         print(
-            f"[runner      ] {t} | new bars: {len(new_bars):2d} | "
-            f"balance: ${bal:.2f} | daily P&L: ${pnl:+.2f} | "
-            f"halted: {engine.session.halted}"
+            f"[runner           ] {t} | new bars: {len(new_bars):2d} | "
+            f"signals: {len(ranked_signals)} | "
+            f"balance: ${bal:.2f} | P&L: ${pnl:+.2f} | SPY: {spy_bias}"
         )
 
         time.sleep(POLL_INTERVAL)
 
     log_decision("info", "runner", "Runner stopped (clean shutdown)")
     write_session(engine)
-    print("[runner      ] Stopped.")
+    print("[runner           ] Stopped.")
 
 
 if __name__ == "__main__":
