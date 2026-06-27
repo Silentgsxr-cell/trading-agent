@@ -147,11 +147,81 @@ Each debt has editable current balance and original balance so the bar tracks pa
 
 ---
 
-## What's Next (Phase 2)
+---
 
-- [ ] `runner.py` — Python runner that writes `state/session.json` + `state/decisions.jsonl` in real time, driving the Mission Control logs page
-- [ ] `agents/signal_agent.py` — Real ORB signal detection (currently `NotImplementedError` stub)
-- [ ] `agents/execution_agent.py` — Paper order execution (currently `NotImplementedError` stub)
-- [ ] `agents/strategist.py` — Strike selection agent (not yet created)
-- [ ] Broker integration — paper trading first via Alpaca or IBKR
-- [ ] Finance tab: monthly budget reset, historical month-over-month budget tracking
+### 10. Signaos (HAWK) — Multi-Strategy Signal Engine
+
+`agents/signaos.py` — pluggable strategy registry with 6 strategies:
+- **ORB** (live) — 2-min bar ORB, volume ratio filter, confidence scoring
+- trend_continuation, pullback, relative_strength, volatility_expansion, news_catalyst — stubs
+
+Scoring model: Technical 40% + News 15% + Macro 25% + Risk 20% → S/A/B/C conviction tiers.
+Only S and A tier signals are routed to VAULT for sizing/approval.
+
+---
+
+### 11. Single-Writer Rule — `utils/`
+
+All shared file writes serialized through filelock-protected utils:
+
+| Module | Owns | Protection |
+|---|---|---|
+| `utils/state_manager.py` | `state/session.json` | filelock + atomic rename |
+| `utils/journal_writer.py` | `data/journal.csv` | filelock |
+| `utils/event_log.py` | `state/decisions.jsonl` | filelock |
+
+`dashboard/app.py` reads state_manager when runner is online, falls back to in-process engine when offline.
+`runner.py` delegates all writes through these utils.
+
+---
+
+### 12. runner.py — Autonomous Agent Loop
+
+`runner.py` — live ORB runner, runs during market hours (weekdays 9:30–16:00 ET):
+- Polls yfinance 2-min bars every 30s
+- Feeds bars to Signaos → RiskEngine → state/signals.jsonl + state/decisions.jsonl
+- SPY bias refreshed every 5 minutes
+- Heartbeat written to session.json every off-hours poll
+- Daily roll-over resets engine + signaos at midnight ET
+- Clean shutdown on SIGINT/SIGTERM → writes OFFLINE to session.json
+
+---
+
+### 13. DaiTaos (Daily Intelligence) + DataOS (Market Data Agent)
+
+`agents/daitaos.py` — DaiTaos crew stub (Discord token handed off, implementation in utils/daitaos.py)
+`agents/dataos.py` — DataOS stub (pure data collection — bars, VWAP, session levels, options chain)
+`utils/daitaos.py` — 8-section daily brief sent to Discord webhook
+`utils/daitaos_bot.py` — Discord bot (!brief, !tsla, !watchlist, !status, !rules, !pnl, !config, !help)
+
+---
+
+### 14. Security Watchdog — `utils/watchdog.py`
+
+Background process running alongside runner.py. Checks every 60 seconds:
+
+1. **API Key Exposure Scan** — loads live .env values, greps all source + docs + state files. CRITICAL Discord alert if any secret value found outside .env.
+2. **Session State Integrity** — validates session.json against config thresholds (balance, trades, loss limit, consecutive losses). WARNING alert with exact field + value.
+3. **File Integrity** — confirms 5 critical files exist and are non-empty. Auto-halts runner via state_manager on any missing file. CRITICAL alert.
+4. **Unauthorized Write Detection** — tracks mtime + size of `risk_config.py` and `strategy_config.py` at startup. CRITICAL alert if either changes during live session.
+5. **Runner Heartbeat Check** — during market hours, warns if `lastHeartbeat` is >3 minutes old.
+6. **.env Git Tracking** — checks `git ls-files .env`. If tracked: CRITICAL alert + auto-runs `git rm --cached .env`.
+
+Alert deduplication: same alert key firing 3+ consecutive cycles → suppressed, replaced with "persistent issue" summary.
+Log rotation: `logs/watchdog.log` rotated to `.log.1` when >10 MB.
+LaunchAgent: `deploy/com.silent.watchdog.plist` — install with:
+```
+cp "deploy/com.silent.watchdog.plist" ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.silent.watchdog.plist
+```
+
+---
+
+## What's Next
+
+- [ ] Add Webull API key to .env (watchdog is in place to guard it)
+- [ ] Flip cards + System page in Mission Control (AgentCard CSS 3D flip, app/system/page.tsx)
+- [ ] `agents/execution_agent.py` — Paper order execution
+- [ ] `agents/strategist.py` — Strike selection agent
+- [ ] DataOS: wire up real bar + options chain data to EvalContext
+- [ ] Finance tab: monthly budget reset, historical month-over-month tracking

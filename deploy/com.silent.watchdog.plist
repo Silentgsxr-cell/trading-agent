@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.silent.watchdog</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Developer/CommandLineTools/usr/bin/python3</string>
+        <string>/Users/silent/trading-agent 2/utils/watchdog.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/silent/trading-agent 2</string>
+
+    <!-- Start at login and keep alive if it crashes -->
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+
+    <!-- 5-second restart delay on crash -->
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <!-- Stdout and stderr both go to watchdog.log -->
+    <key>StandardOutPath</key>
+    <string>/Users/silent/trading-agent 2/logs/watchdog.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/silent/trading-agent 2/logs/watchdog.log</string>
+
+    <!-- Low priority — don't compete with runner.py -->
+    <key>Nice</key>
+    <integer>10</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PYTHONUNBUFFERED</key>
+        <string>1</string>
+        <key>PYTHONDONTWRITEBYTECODE</key>
+        <string>1</string>
+    </dict>
+</dict>
+</plist>
