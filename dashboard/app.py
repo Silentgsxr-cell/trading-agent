@@ -27,6 +27,7 @@ sys.path.insert(0, _ROOT)   # resolves: from agents.* / config.* import ...
 sys.path.insert(0, _HERE)   # resolves: from agent.* import ... (must be first to shadow root agent/)
 
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 
 from agent.market_data     import get_all_market_data, get_sparklines, get_news
 from agent.orb_calculator  import calculate_orb
@@ -40,6 +41,7 @@ from agent.backtester      import run_backtest
 import utils.state_manager as state_mgr
 
 app = Flask(__name__, template_folder='templates')
+CORS(app, origins=["http://localhost:3000"])
 
 # Single RiskEngine instance for the life of this process.
 # Holds session state: trades opened today, consecutive losses, halted flag.
