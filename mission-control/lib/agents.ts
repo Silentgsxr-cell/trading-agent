@@ -24,12 +24,12 @@ export interface AgentCard {
 const CREW: Omit<AgentCard, "status" | "blockers" | "lines">[] = [
   {
     id: "signal",
-    name: "Signal Agent",
-    role: "ORB breakout detection",
-    file: "signal_agent.py",
+    name: "Signaos",
+    role: "Multi-strategy signal framework",
+    file: "signaos.py",
     ring: "core",
     governor: false,
-    summary: "Emits ORB candidate signals on the 2-min stream. Never sizes or orders.",
+    summary: "Runs all enabled strategies, scores and ranks signals (S/A/B/C), routes A+ to Risk Engine. Never sizes or orders.",
   },
   {
     id: "risk",
@@ -42,12 +42,12 @@ const CREW: Omit<AgentCard, "status" | "blockers" | "lines">[] = [
   },
   {
     id: "data",
-    name: "Data Agent",
-    role: "Market data · VWAP · levels · options chain",
-    file: "data_agent.py",
+    name: "DataOS",
+    role: "Bars · VWAP · session levels · options chain",
+    file: "dataos.py",
     ring: "macro",
     governor: false,
-    summary: "Publishes clean bars, VWAP, session levels, options chain. Read-only feed.",
+    summary: "Read-only data backbone. Aggregates 1-min bars into 2-min/15-min, computes VWAP, publishes session levels and options chain on demand.",
   },
   {
     id: "execution",
