@@ -677,5 +677,208 @@ def api_analytics_tabs():
         return jsonify({'error': str(e)}), 500
 
 
+# ─── API: Life Tab ────────────────────────────────────────────────────────────
+
+import subprocess as _sub
+
+GOALS_FILE = os.path.join(_ROOT, "data", "goals.json")
+
+
+def _load_goals() -> list:
+    if not os.path.exists(GOALS_FILE):
+        return []
+    with open(GOALS_FILE) as f:
+        return json.load(f)
+
+
+def _save_goals(goals: list) -> None:
+    with open(GOALS_FILE, "w") as f:
+        json.dump(goals, f, indent=2, default=str)
+
+
+@app.route('/api/life/calendar')
+def api_life_calendar():
+    script = r'''
+tell application "Calendar"
+    set startDate to current date
+    set endDate to startDate + (7 * days)
+    set output to ""
+    repeat with cal in calendars
+        set calName to name of cal
+        try
+            set evts to every event of cal whose start date >= startDate and start date <= endDate
+            repeat with evt in evts
+                try
+                    set evtTitle to summary of evt
+                    set evtStart to (start date of evt) as string
+                    set evtEnd to (end date of evt) as string
+                    set allD to "false"
+                    try
+                        if allday event of evt then set allD to "true"
+                    end try
+                    set output to output & calName & "||" & evtTitle & "||" & evtStart & "||" & evtEnd & "||" & allD & "
+"
+                end try
+            end repeat
+        end try
+    end repeat
+    return output
+end tell
+'''
+    try:
+        r = _sub.run(['osascript', '-e', script], capture_output=True, text=True, timeout=12)
+        events = []
+        for line in r.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('||')
+            if len(parts) >= 4:
+                events.append({
+                    'calendar': parts[0].strip(),
+                    'title':    parts[1].strip(),
+                    'start':    parts[2].strip(),
+                    'end':      parts[3].strip(),
+                    'allDay':   len(parts) > 4 and parts[4].strip() == 'true',
+                })
+        events.sort(key=lambda e: e['start'])
+        return jsonify({'events': events, 'error': r.stderr.strip() or None})
+    except Exception as e:
+        return jsonify({'events': [], 'error': str(e)}), 200
+
+
+@app.route('/api/life/tasks')
+def api_life_tasks():
+    script = r'''
+tell application "Reminders"
+    set output to ""
+    try
+        set allLists to every list
+        repeat with rl in allLists
+            set listName to name of rl
+            try
+                set rems to every reminder of rl whose completed is false
+                repeat with r in rems
+                    set rTitle to name of r
+                    set rDue to ""
+                    try
+                        set rDue to (due date of r) as string
+                    end try
+                    set output to output & listName & "||" & rTitle & "||" & rDue & "
+"
+                end repeat
+            end try
+        end repeat
+    end try
+    return output
+end tell
+'''
+    try:
+        r = _sub.run(['osascript', '-e', script], capture_output=True, text=True, timeout=12)
+        tasks = []
+        for line in r.stdout.strip().split('\n'):
+            if not line.strip():
+                continue
+            parts = line.split('||')
+            if len(parts) >= 2:
+                tasks.append({
+                    'list':  parts[0].strip(),
+                    'title': parts[1].strip(),
+                    'due':   parts[2].strip() if len(parts) > 2 else '',
+                })
+        return jsonify({'tasks': tasks, 'error': r.stderr.strip() or None})
+    except Exception as e:
+        return jsonify({'tasks': [], 'error': str(e)}), 200
+
+
+@app.route('/api/life/goals', methods=['GET'])
+def api_life_goals_get():
+    try:
+        return jsonify(_load_goals())
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/life/goals', methods=['POST'])
+def api_life_goals_post():
+    data = request.get_json(force=True) or {}
+    try:
+        goals = _load_goals()
+        import re as _re2
+        nums = [int(m.group(1)) for g in goals for m in [_re2.match(r'GOAL-(\d+)', g.get('id', ''))] if m]
+        new_id = f"GOAL-{max(nums, default=0) + 1:03d}"
+        goal = {
+            "id":           new_id,
+            "title":        str(data.get("title", "")).strip(),
+            "notes":        str(data.get("notes", "")).strip(),
+            "target_date":  str(data.get("target_date", "")).strip(),
+            "status":       "active",
+            "created_at":   _dt.datetime.now().isoformat(),
+            "completed_at": None,
+        }
+        if not goal["title"]:
+            return jsonify({"error": "title required"}), 400
+        goals.append(goal)
+        _save_goals(goals)
+        return jsonify({"success": True, "goal": goal}), 201
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/life/goals/<goal_id>', methods=['PATCH'])
+def api_life_goals_patch(goal_id: str):
+    data = request.get_json(force=True) or {}
+    try:
+        goals = _load_goals()
+        g = next((g for g in goals if g["id"].upper() == goal_id.upper()), None)
+        if g is None:
+            return jsonify({"error": "not found"}), 404
+        for field in ("title", "notes", "target_date", "status"):
+            if field in data:
+                g[field] = data[field]
+        if data.get("status") == "done" and not g.get("completed_at"):
+            g["completed_at"] = _dt.datetime.now().isoformat()
+        elif data.get("status") == "active":
+            g["completed_at"] = None
+        _save_goals(goals)
+        return jsonify({"success": True, "goal": g})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/life/goals/<goal_id>', methods=['DELETE'])
+def api_life_goals_delete(goal_id: str):
+    try:
+        goals = _load_goals()
+        gid = goal_id.upper()
+        goals = [g for g in goals if g["id"].upper() != gid]
+        _save_goals(goals)
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/life/finance')
+def api_life_finance():
+    finance_json = os.path.join(_ROOT, "data", "finance.json")
+    try:
+        if os.path.exists(finance_json):
+            with open(finance_json) as f:
+                fin = json.load(f)
+        else:
+            fin = {"accounts": [], "debts": [], "budget": {"month": "", "categories": []}}
+        total_assets = sum(a.get("balance", 0) for a in fin.get("accounts", []))
+        total_debt   = sum(d.get("balance", 0) for d in fin.get("debts", []))
+        net_worth    = round(total_assets - total_debt, 2)
+        return jsonify({
+            "accounts":     fin.get("accounts", []),
+            "debts":        fin.get("debts", []),
+            "total_assets": round(total_assets, 2),
+            "total_debt":   round(total_debt, 2),
+            "net_worth":    net_worth,
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

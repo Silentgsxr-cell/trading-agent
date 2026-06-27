@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Ticket,
   TicketDB,
@@ -10,6 +10,7 @@ import {
   PRIORITY_COLOR,
   PRIORITY_ORDER,
 } from "@/lib/ticket-types";
+import { SuggestionBoard } from "../suggestions/SuggestionBoard";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -486,9 +487,30 @@ function NewTicketForm({ onSubmit, onCancel }: {
   );
 }
 
+// ── Tab button ────────────────────────────────────────────────────────────────
+
+function TabBtn({
+  active, onClick, children,
+}: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-1.5 px-4 py-2 text-[12px] font-medium uppercase tracking-wide border-b-2 transition ${
+        active
+          ? "border-maroon-400 text-white"
+          : "border-transparent text-slate-500 hover:text-slate-300"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ── Main client component ─────────────────────────────────────────────────────
 
 export function DevClient({ db }: { db: TicketDB }) {
+  const [section, setSection] = useState<"tickets" | "suggestions">("tickets");
+  const [unreviewedCount, setUnreviewedCount] = useState(0);
   const [selected, setSelected] = useState<Ticket | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [tickets, setTickets] = useState<Ticket[]>(db.tickets);
@@ -496,6 +518,22 @@ export function DevClient({ db }: { db: TicketDB }) {
   const [toast, setToast] = useState("");
 
   const FLASK = process.env.NEXT_PUBLIC_FLASK_URL ?? "http://localhost:5000";
+
+  useEffect(() => {
+    let mounted = true;
+    async function poll() {
+      try {
+        const r = await fetch(`${FLASK}/api/suggestions/stats`);
+        if (r.ok && mounted) {
+          const d = await r.json();
+          setUnreviewedCount(d.unreviewed ?? 0);
+        }
+      } catch { /* flask offline */ }
+    }
+    poll();
+    const id = setInterval(poll, 30_000);
+    return () => { mounted = false; clearInterval(id); };
+  }, [FLASK]);
 
   const sorted = [...tickets].sort(
     (a, b) =>
@@ -526,7 +564,7 @@ export function DevClient({ db }: { db: TicketDB }) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)] gap-4">
+    <div className="space-y-0">
       {/* Toast */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 rounded-lg bg-green-500/90 px-4 py-2 text-sm font-medium text-white shadow-lg">
@@ -534,63 +572,93 @@ export function DevClient({ db }: { db: TicketDB }) {
         </div>
       )}
 
-      {/* Left column — ticket queue */}
-      <div className="flex w-[340px] shrink-0 flex-col">
-        {/* Header */}
-        <div className="mb-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-semibold text-slate-100">Dev Queue</h1>
-            <p className="text-[11px] text-slate-500">
-              {tickets.length} ticket{tickets.length !== 1 ? "s" : ""}
-              {paused ? " · ⏸ paused" : ""}
-            </p>
-          </div>
-          <button
-            onClick={() => { setShowForm(true); setSelected(null); }}
-            className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.06]"
-          >
-            + New Ticket
-          </button>
+      {/* Section header + tab bar */}
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-100">Dev</h1>
+          <p className="text-[13px] text-signal-dim">Tickets · SAGE Suggestions</p>
         </div>
+      </div>
 
-        {/* Ticket list */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {sorted.length === 0 ? (
-            <div className="pt-8 text-center text-sm text-slate-600">
-              No tickets yet. Click "+ New Ticket" to create one.
-            </div>
-          ) : (
-            sorted.map(t => (
-              <TicketCard
-                key={t.id}
-                ticket={t}
-                selected={selected?.id === t.id}
-                onClick={() => { setSelected(t); setShowForm(false); }}
-              />
-            ))
+      <div className="flex border-b border-white/5 mb-4 -mt-2">
+        <TabBtn active={section === "tickets"} onClick={() => setSection("tickets")}>
+          Tickets
+          <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${
+            section === "tickets" ? "bg-maroon-500/30 text-maroon-300" : "bg-white/5 text-slate-600"
+          }`}>
+            {tickets.length}
+          </span>
+        </TabBtn>
+        <TabBtn active={section === "suggestions"} onClick={() => setSection("suggestions")}>
+          Suggestions
+          {unreviewedCount > 0 && (
+            <span className="rounded-full bg-maroon-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+              {unreviewedCount > 99 ? "99+" : unreviewedCount}
+            </span>
           )}
-        </div>
+        </TabBtn>
       </div>
 
-      {/* Right column — detail or form */}
-      <div className="flex-1 overflow-y-auto rounded-lg border border-white/5 bg-white/[0.02] p-5">
-        {showForm ? (
-          <NewTicketForm
-            onSubmit={handleNewTicket}
-            onCancel={() => setShowForm(false)}
-          />
-        ) : selected ? (
-          <TicketDetail
-            ticket={selected}
-            onClose={() => setSelected(null)}
-          />
-        ) : (
-          <div className="flex h-full flex-col items-center justify-center text-center gap-3">
-            <span className="text-4xl text-slate-700">⬡</span>
-            <p className="text-sm text-slate-600">Select a ticket to view details,<br />or create a new one.</p>
+      {/* Tickets panel */}
+      {section === "tickets" && (
+        <div className="flex h-[calc(100vh-180px)] gap-4">
+          {/* Left column — ticket queue */}
+          <div className="flex w-[340px] shrink-0 flex-col">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[11px] text-slate-500">
+                {tickets.length} ticket{tickets.length !== 1 ? "s" : ""}
+                {paused ? " · ⏸ paused" : ""}
+              </p>
+              <button
+                onClick={() => { setShowForm(true); setSelected(null); }}
+                className="rounded-md border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/[0.06]"
+              >
+                + New Ticket
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+              {sorted.length === 0 ? (
+                <div className="pt-8 text-center text-sm text-slate-600">
+                  No tickets yet. Click "+ New Ticket" to create one.
+                </div>
+              ) : (
+                sorted.map(t => (
+                  <TicketCard
+                    key={t.id}
+                    ticket={t}
+                    selected={selected?.id === t.id}
+                    onClick={() => { setSelected(t); setShowForm(false); }}
+                  />
+                ))
+              )}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Right column — detail or form */}
+          <div className="flex-1 overflow-y-auto rounded-lg border border-white/5 bg-white/[0.02] p-5">
+            {showForm ? (
+              <NewTicketForm
+                onSubmit={handleNewTicket}
+                onCancel={() => setShowForm(false)}
+              />
+            ) : selected ? (
+              <TicketDetail
+                ticket={selected}
+                onClose={() => setSelected(null)}
+              />
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center text-center gap-3">
+                <span className="text-4xl text-slate-700">⬡</span>
+                <p className="text-sm text-slate-600">Select a ticket to view details,<br />or create a new one.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Suggestions panel */}
+      {section === "suggestions" && <SuggestionBoard />}
     </div>
   );
 }
