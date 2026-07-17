@@ -8,7 +8,7 @@ __pycache__/
 venv/
 logs/*.log*
 logs/*.md
-logs/chief_assessment.json
+logs/*.json
 
 # Runtime state — written constantly by runner and watchdog, not committed
 state/session.json

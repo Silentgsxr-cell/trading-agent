@@ -460,7 +460,8 @@ def send_brief():
         label = "2 embeds" if split else "1 embed"
         print(f"✅  Morning brief sent at {now_az.strftime('%-I:%M %p AZ')} ({label})")
         tsla_line = fields[1]["value"].split("\n")[0]   # first line: price + bias
-        spy_line  = fields[3]["value"].split("\n")[1]   # second line: RISK ON/OFF/NEUTRAL
+        spy_lines = fields[3]["value"].split("\n")
+        spy_line  = spy_lines[1] if len(spy_lines) > 1 else spy_lines[0]   # 2nd line normally; single-line on data-unavailable/error fallback
         log("🌅", "Morning Brief Sent",
             f"**TSLA:** {tsla_line}\n"
             f"**SPY:** {spy_line}\n"
