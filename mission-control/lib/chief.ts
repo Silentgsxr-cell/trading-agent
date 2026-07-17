@@ -33,18 +33,36 @@ export interface MorningBrief {
   };
 }
 
+export interface ChiefHandoff {
+  from_agent: string;
+  to_agent:   string;
+  note:       string;
+}
+
+export interface ChiefAssessment {
+  assessment:        string;
+  directive:         string;
+  handoffs:          ChiefHandoff[];
+  readiness_pct:     number;
+  system_health:     "nominal" | "degraded" | "critical";
+  key_blocker:       string | null;
+  next_session_prep: string;
+  generated_at:      string;
+}
+
 export interface ChiefData {
-  session:       SessionState | null;
-  online:        boolean;
-  decisions:     DecisionEvent[];
-  todayDecisions: DecisionEvent[];
-  suggestions:   Suggestion[];
-  watchdogAlerts: string[];
-  morningBrief:  MorningBrief | null;
-  marketStatus:  MarketStatus;
-  marketChip:    string;
-  greeting:      string;
-  todayLabel:    string;
+  session:          SessionState | null;
+  online:           boolean;
+  decisions:        DecisionEvent[];
+  todayDecisions:   DecisionEvent[];
+  suggestions:      Suggestion[];
+  watchdogAlerts:   string[];
+  morningBrief:     MorningBrief | null;
+  chiefAssessment:  ChiefAssessment | null;
+  marketStatus:     MarketStatus;
+  marketChip:       string;
+  greeting:         string;
+  todayLabel:       string;
 }
 
 // ── Market status ──────────────────────────────────────────────────────────────
@@ -132,6 +150,19 @@ async function loadMorningBrief(): Promise<MorningBrief | null> {
   }
 }
 
+// ── CHIEF assessment ───────────────────────────────────────────────────────────
+
+async function loadChiefAssessment(): Promise<ChiefAssessment | null> {
+  try {
+    const raw = await fs.readFile(
+      path.join(PROJECT_ROOT, "logs", "chief_assessment.json"), "utf8"
+    );
+    return JSON.parse(raw) as ChiefAssessment;
+  } catch {
+    return null;
+  }
+}
+
 // ── Focus rule ────────────────────────────────────────────────────────────────
 
 export function getFocusLine(
@@ -162,13 +193,14 @@ export function getFocusLine(
 export async function getChiefData(): Promise<ChiefData> {
   const today = new Date().toISOString().slice(0, 10);
 
-  const [{ session, online }, decisions, suggestions, watchdogAlerts, morningBrief] =
+  const [{ session, online }, decisions, suggestions, watchdogAlerts, morningBrief, chiefAssessment] =
     await Promise.all([
       getSession(),
       getDecisions(100),
       loadSuggestions(),
       loadWatchdogAlerts(),
       loadMorningBrief(),
+      loadChiefAssessment(),
     ]);
 
   const todayDecisions = decisions.filter((d) => d.ts.startsWith(today));
@@ -182,6 +214,7 @@ export async function getChiefData(): Promise<ChiefData> {
     suggestions,
     watchdogAlerts,
     morningBrief,
+    chiefAssessment,
     marketStatus,
     marketChip,
     greeting:   getGreeting(),

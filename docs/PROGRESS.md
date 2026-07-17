@@ -1,6 +1,11 @@
 # Build Progress — ClawOps
 Last updated: 2026-06-26
 
+> **Historical changelog.** This is a point-in-time record of what was built. Sections 2, 8,
+> and others describe the Flask backend on **localhost:5000** — that backend was **removed
+> shortly after** (migrated into Next.js API routes). The system now runs as a single
+> Next.js server on **localhost:3000**. For the current architecture see `docs/MASTER.md`.
+
 ---
 
 ## What Was Built

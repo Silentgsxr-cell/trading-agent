@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "id": "GOAL-001",
+    "title": "60 dollars a dar gains",
+    "notes": "",
+    "target_date": "",
+    "status": "active",
+    "created_at": "2026-07-07T02:07:13.577Z",
+    "completed_at": null
+  }
+]

@@ -1,6 +1,8 @@
-# Silent — Trading Terminal
+# Silent — ClawOps Trading Terminal
 
-A Webull-style day trading dashboard built with Flask. Designed for a small account trader focused on the 15-minute Opening Range Breakout (ORB) strategy on TSLA, QQQ, MSFT, and AMZN.
+A Webull-style day trading dashboard for a small account trader focused on the 15-minute Opening Range Breakout (ORB) strategy on TSLA, QQQ, MSFT, and AMZN. It runs as a single Next.js "Mission Control" app on `localhost:3000` over a Python multi-agent trading system.
+
+> **Note:** This started as a Flask app on port 5000. Flask was removed in June 2026 — everything now runs as one Next.js server on port 3000. `docs/MASTER.md` is the canonical, up-to-date reference; this README is the historical origin doc.
 
 ## Features
 
@@ -17,21 +19,20 @@ A Webull-style day trading dashboard built with Flask. Designed for a small acco
 
 ## Stack
 
-- **Backend:** Python 3, Flask, yfinance, pandas, pytz
-- **Frontend:** Vanilla HTML/CSS/JS — no frameworks
+- **App / UI:** Next.js 14 (App Router, TypeScript, Tailwind) — one server on `localhost:3000`, all API routes inside `mission-control/app/api/`
+- **Agents / trading loop:** Python 3 — `runner.py`, `agents/`, `utils/`, yfinance, pandas, pytz
 - **Chart:** TradingView embeddable widget (free, no API key)
 - **Data:** yfinance for prices and news (15–20 min delay on free tier)
 
 ## Setup
 
 ```bash
-git clone https://github.com/Silentgsxr-cell/trading-agent.git
-cd trading-agent
-pip3 install -r requirements.txt
-PORT=5001 python3 run.py
+cd ~/trading-agent\ 2/mission-control
+npm install
+npm run dev
 ```
 
-Then open **http://localhost:5001** in your browser.
+Then open **http://localhost:3000** in your browser (redirects to `/chief`).
 
 ## Project Structure
 
@@ -64,6 +65,6 @@ trading-agent/
 ## Notes
 
 - `.env` and `data/journal.csv` are excluded from git — they stay local on each machine
-- Port 5000 conflicts with macOS AirPlay Receiver — use `PORT=5001`
+- Runs on port 3000. The old port 5000 / macOS AirPlay conflict no longer applies (Flask removed)
 - Prices are delayed 15–20 minutes on the yfinance free tier
 - ORB range validity thresholds are tunable constants at the top of `agent/orb_calculator.py`

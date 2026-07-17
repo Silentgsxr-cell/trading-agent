@@ -1,6 +1,10 @@
 # ClawOps — Handoff Document
 Drop this into a new Claude session to restore full context instantly.
 
+> **⚠️ Updated 2026-07-16:** Flask (port 5000) was removed — everything now runs as **one
+> Next.js server on localhost:3000**. Sections below that mention a Flask dashboard or two
+> servers are historical. `docs/MASTER.md` is the canonical, current reference.
+
 ---
 
 ## Project location
@@ -19,16 +23,13 @@ Location: /Users/silent/trading-agent 2/
 
 REPO: https://github.com/Silentgsxr-cell/trading-agent  (branch: master)
 
-TWO LIVE DASHBOARDS:
-  Flask trading terminal  → localhost:5000  (python3 dashboard/app.py)
+ONE LIVE DASHBOARD:
   ClawOps Mission Control → localhost:3000  (cd mission-control && npm run dev)
+  (Flask on 5000 was removed — all API routes now live inside Next.js at
+   mission-control/app/api/. There is no separate backend to start.)
 
 STARTUP:
-  cd "/Users/silent/trading-agent 2" && python3 dashboard/app.py
   cd "/Users/silent/trading-agent 2/mission-control" && npm run dev
-
-NOTE: macOS AirPlay Receiver must be OFF (System Settings → General → AirDrop & Handoff)
-or it intercepts port 5000 and Flask returns a blank page.
 
 BACKGROUND PROCESSES (start manually each session):
   cd "/Users/silent/trading-agent 2"
@@ -68,9 +69,8 @@ BACKGROUND PROCESSES (start manually each session):
 - `deploy/com.silent.devagent.plist` — LaunchAgent (5:00 AM + 5:30 PM AZ, one-shot)
   Install: `cp deploy/com.silent.devagent.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.silent.devagent.plist`
 
-### Dashboards
-- `dashboard/app.py` — Flask, 17 routes including ticket CRUD
-- `mission-control/` — Next.js 14, pages: Cockpit, Logs, Intelligence, Research, Finance, Dev Queue
+### Dashboard
+- `mission-control/` — Next.js 14, single server on localhost:3000. Pages: Cockpit, Logs, Intelligence, Research, Finance, Dev Queue. All API routes live in `mission-control/app/api/` (the old Flask `dashboard/app.py` was removed).
 
 ### Discord
 - `utils/daitaos.py` — **INTEL**: 9-section morning brief (incl. dev agent overnight summary)
@@ -167,7 +167,6 @@ Never committed to git. Watchdog checks this every cycle.
 | Never commit `state/session.json` or `state/decisions.jsonl` | Runtime state, excluded in .gitignore |
 | All writes to shared files go through `utils/` | Single-writer rule prevents corruption |
 | Dev agent never writes to `agents/`, `config/`, `tests/`, or core `utils/` | Hard-blocked in global path list |
-| AirPlay Receiver must be OFF | macOS intercepts port 5000 |
 
 ---
 
@@ -249,7 +248,7 @@ Never committed to git. Watchdog checks this every cycle.
 
 | Decision | Reason |
 |---|---|
-| Flask 5000 + Next.js 3000 | Two tools — trading terminal vs mission control |
+| Single Next.js server on 3000 | Flask (5000) was merged into Next.js API routes — one server, no CORS, simpler |
 | Mission Control reads files directly | No CORS, works offline, cleaner separation |
 | Agent status derived from source (NotImplementedError) | No hardcoded config to maintain |
 | Single-writer rule via filelock | Prevents state corruption from concurrent processes |

@@ -3,7 +3,7 @@ import { getChiefData, getFocusLine } from "@/lib/chief";
 import { getAgents }                 from "@/lib/agents";
 import { getJournal }                from "@/lib/journal";
 import type { AgentCard }            from "@/lib/agents";
-import type { Suggestion, MorningBrief } from "@/lib/chief";
+import type { Suggestion, MorningBrief, ChiefAssessment, ChiefHandoff } from "@/lib/chief";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +118,92 @@ function AgentStrip({ agents }: { agents: AgentCard[] }) {
   );
 }
 
+// ── CHIEF assessment panel ────────────────────────────────────────────────────
+
+const HEALTH_STYLES = {
+  nominal:  { border: "border-signal-live/30",  bg: "bg-signal-live/5",  badge: "border-signal-live/40 bg-signal-live/10 text-signal-live" },
+  degraded: { border: "border-signal-warn/30",  bg: "bg-signal-warn/5",  badge: "border-signal-warn/40 bg-signal-warn/10 text-signal-warn" },
+  critical: { border: "border-red-500/30",       bg: "bg-red-500/5",      badge: "border-red-500/40 bg-red-500/10 text-red-400" },
+};
+
+function ChiefAssessmentPanel({ assessment }: { assessment: ChiefAssessment | null }) {
+  if (!assessment) {
+    return (
+      <div className="panel flex items-center justify-between gap-4 px-4 py-3 border-dashed border-slate-700/60">
+        <div className="text-[11px] text-signal-dim">
+          CHIEF not yet run — <code className="text-slate-400 text-[10px]">python3 agents/chief.py --dry-run</code>
+        </div>
+        <span className="chip border-slate-600/40 bg-slate-700/30 text-slate-500 shrink-0">CHIEF OFFLINE</span>
+      </div>
+    );
+  }
+
+  const health  = assessment.system_health ?? "nominal";
+  const styles  = HEALTH_STYLES[health] ?? HEALTH_STYLES.nominal;
+  const age     = relativeTime(assessment.generated_at);
+  const handoffs: ChiefHandoff[] = assessment.handoffs ?? [];
+
+  return (
+    <div className={`panel flex flex-col gap-3 p-4 ${styles.border} ${styles.bg}`}>
+      {/* Header row */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-signal-dim">CHIEF Assessment</div>
+          <span className={`chip text-[9px] ${styles.badge}`}>{health.toUpperCase()}</span>
+          <span className="chip border-slate-600/40 bg-navy-700/30 text-slate-400 text-[9px]">
+            {assessment.readiness_pct}% ready
+          </span>
+        </div>
+        <div className="text-[9px] text-signal-dim">Updated {age}</div>
+      </div>
+
+      {/* Directive */}
+      <div className="rounded-md border border-edge bg-navy-800/60 px-3 py-2">
+        <div className="text-[9px] font-semibold uppercase tracking-widest text-signal-dim mb-1">Directive</div>
+        <p className="text-[12px] font-medium text-slate-100 leading-snug">{assessment.directive}</p>
+      </div>
+
+      {/* Assessment + blocker side-by-side on wider screens */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <div className="label mb-1">Assessment</div>
+          <p className="text-[11px] text-slate-300 leading-relaxed">{assessment.assessment}</p>
+        </div>
+        {assessment.key_blocker && (
+          <div>
+            <div className="label mb-1 text-signal-warn">Key Blocker</div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">{assessment.key_blocker}</p>
+          </div>
+        )}
+        {assessment.next_session_prep && (
+          <div className={assessment.key_blocker ? "sm:col-span-2" : ""}>
+            <div className="label mb-1">Next Session</div>
+            <p className="text-[11px] text-slate-300 leading-relaxed">{assessment.next_session_prep}</p>
+          </div>
+        )}
+      </div>
+
+      {/* Handoffs */}
+      {handoffs.length > 0 && (
+        <div>
+          <div className="label mb-1">Handoffs</div>
+          <div className="flex flex-col gap-1.5">
+            {handoffs.map((h, i) => (
+              <div key={i} className="flex items-start gap-2 text-[11px] text-slate-300">
+                <span className="text-signal-dim shrink-0">
+                  {h.from_agent} → {h.to_agent}
+                </span>
+                <span className="text-slate-400">·</span>
+                <span>{h.note}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Morning brief panel ───────────────────────────────────────────────────────
 
 function BriefPanel({ brief }: { brief: MorningBrief | null }) {
@@ -199,7 +285,7 @@ export default async function ChiefPage() {
 
   const {
     session, online, todayDecisions, suggestions, watchdogAlerts,
-    morningBrief, marketStatus, marketChip, greeting, todayLabel,
+    morningBrief, chiefAssessment, marketStatus, marketChip, greeting, todayLabel,
   } = data;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -306,6 +392,9 @@ export default async function ChiefPage() {
           )}
         </div>
       </div>
+
+      {/* ── CHIEF assessment ────────────────────────────────────────────── */}
+      <ChiefAssessmentPanel assessment={chiefAssessment} />
 
       {/* ── 2×2 question cards ─────────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-4">
