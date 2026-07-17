@@ -1,5 +1,5 @@
 # ClawOps — Master Reference Document
-> **Last updated:** 2026-06-27 | **Branch:** master | **Repo:** [Silentgsxr-cell/trading-agent](https://github.com/Silentgsxr-cell/trading-agent)
+> **Last updated:** 2026-07-16 | **Branch:** master | **Repo:** [Silentgsxr-cell/trading-agent](https://github.com/Silentgsxr-cell/trading-agent)
 
 ---
 
@@ -22,8 +22,9 @@ ClawOps is Silent's autonomous ORB paper trading system built on a multi-agent a
 
 Symlinked into Obsidian vault at:
 ```
-~/Desktop/silent graph/trading-agent 2  →  ~/trading-agent 2
+~/Desktop/silent graph/trading-agent (shortcut)  →  ~/trading-agent 2
 ```
+> Renamed from `trading-agent 3` on 2026-07-16 to make clear it's a shortcut, not a second project.
 
 > **Why home root?** macOS TCC blocks LaunchAgents from accessing `~/Desktop/` without Full Disk Access (system Python shims are greyed out in FDA settings). Home root has no TCC restriction.
 
@@ -59,6 +60,7 @@ python3 runner.py                  # Trading loop (weekdays 9:30–16:00 ET)
 │   ├── dataos.py                  # PULSE — market intelligence stub
 │   ├── execution_agent.py         # TRIGGER — order execution stub
 │   ├── review_agent.py            # LEDGER — journal feedback stub
+│   ├── chief.py                   # CHIEF — Chief of Staff orchestrator (live, runs 6:00 AM + 4:30 PM AZ)
 │   └── strategies/
 │       ├── orb.py                 # ORB strategy (live)
 │       └── *.py                   # 5 stub strategies
@@ -77,7 +79,7 @@ python3 runner.py                  # Trading loop (weekdays 9:30–16:00 ET)
 │   └── strategy_config.py         # SYMBOL=TSLA, ORB window, watchlist
 ├── mission-control/               # Next.js 14 — localhost:3000
 │   ├── app/
-│   │   ├── page.tsx               # Cockpit (home)
+│   │   ├── chief/page.tsx         # Cockpit (home) — reads logs/chief_assessment.json
 │   │   ├── life/page.tsx          # Life — Calendar, Tasks, Goals, Finance
 │   │   ├── dev/DevClient.tsx      # Dev Queue — ticket system
 │   │   ├── suggestions/           # Suggestion whiteboard
@@ -94,6 +96,7 @@ python3 runner.py                  # Trading loop (weekdays 9:30–16:00 ET)
 │   └── lib/
 │       ├── dataPath.ts            # Shared JSON read/write utility
 │       ├── agents.ts              # Agent registry
+│       ├── chief.ts               # Reads logs/chief_assessment.json for the /chief page
 │       ├── finance.ts
 │       ├── tickets.ts
 │       └── ...
@@ -111,10 +114,12 @@ python3 runner.py                  # Trading loop (weekdays 9:30–16:00 ET)
 ├── deploy/
 │   ├── com.silent.watchdog.plist
 │   ├── com.silent.devagent.plist
-│   └── com.silent.suggestion.plist
+│   ├── com.silent.suggestion.plist
+│   └── com.silent.chief.plist     # not yet installed to ~/Library/LaunchAgents
 └── logs/
     ├── watchdog.log
-    └── dev_agent_audit.log
+    ├── dev_agent_audit.log
+    └── chief_assessment.json      # Written by chief.py, read by mission-control/app/chief/page.tsx
 ```
 
 ---
@@ -181,7 +186,7 @@ All routes are relative — no Flask, no external server dependency.
 | **WATCH** | `utils/watchdog.py` | 7-check security monitor (60s) | Live — LaunchAgent |
 | **INTEL** | `utils/daitaos.py` | 9-section morning brief + Discord | Live |
 | **SAGE** | `utils/suggestion_agent.py` | Twice-daily advisor | Live — LaunchAgent |
-| **CHIEF** | _(not yet built)_ | Master orchestrator | Planned |
+| **CHIEF** | `agents/chief.py` | Chief of Staff — reads all agent state, one Claude API call, writes `logs/chief_assessment.json` for the `/chief` cockpit home page | Built, committed — LaunchAgent (`deploy/com.silent.chief.plist`) not yet installed |
 
 ---
 
@@ -197,6 +202,7 @@ All services point to `~/trading-agent 2/`. Plist source files live in `deploy/`
 | `com.silent.dataos.sync` | 4:30 PM daily | `utils/daitaos_sync.py` |
 | `com.silent.devagent` | 5:00 AM + 5:30 PM | `utils/dev_agent.py` |
 | `com.silent.suggestion` | 5:00 AM + 5:30 PM | `utils/suggestion_agent.py` |
+| `com.silent.chief` | 6:00 AM + 4:30 PM AZ | `agents/chief.py` — plist exists in `deploy/`, **not yet installed** to `~/Library/LaunchAgents` |
 
 **Reinstall after any path change:**
 ```bash
@@ -346,7 +352,7 @@ All shared state files are owned by one utility. No other file writes to them di
 | Life tab (Calendar, Tasks, Goals, Finance) | ✅ |
 | Flask → Next.js API migration | ✅ |
 | Apple Calendar via osascript | ✅ (wired, needs macOS permission grant) |
-| CHIEF — master orchestrator | ⬜ Not started |
+| CHIEF — master orchestrator | ✅ Built + committed (`agents/chief.py`, `/chief` cockpit page) — LaunchAgent not yet installed |
 | Webull data feed (PULSE live) | ⬜ Not started |
 | Paper execution (TRIGGER live) | ⬜ Not started |
 | Calendar tab — trading schedule / FOMC | ⬜ Not started |
@@ -356,9 +362,9 @@ All shared state files are owned by one utility. No other file writes to them di
 
 ## Next Priorities
 
-1. **CHIEF** — master orchestrator agent (not yet built)
+1. **Install CHIEF's LaunchAgent** — `cp deploy/com.silent.chief.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.silent.chief.plist` (code is built and committed; it just isn't scheduled yet)
 2. **Apple Calendar permission** — grant `npm` / Node access in System Settings → Privacy → Calendars
-3. **Anthropic API credits** — `console.anthropic.com` → Plans & Billing → TICKET-001 ready to run
+3. **Anthropic API credits** — `console.anthropic.com` → Plans & Billing → TICKET-001 ready to run, also required for CHIEF's Claude API call
 4. **Populate Discord webhooks** — 6 vars in `.env`
 5. **Webull data agent** — wire PULSE to real bar + options chain data
 6. **Paper execution** — wire TRIGGER to journal_writer fill simulation
@@ -371,15 +377,15 @@ Vault root: `~/Desktop/silent graph/`
 
 `.obsidianignore` at vault root excludes all code/log/data folders so the graph stays clean:
 ```
-trading-agent 2/mission-control
-trading-agent 2/.git
-trading-agent 2/__pycache__
-trading-agent 2/data
-trading-agent 2/logs
-trading-agent 2/state
-trading-agent 2/node_modules
-trading-agent 2/sim
-trading-agent 2/tests
-trading-agent 2/dashboard/agent
+trading-agent (shortcut)/mission-control
+trading-agent (shortcut)/.git
+trading-agent (shortcut)/__pycache__
+trading-agent (shortcut)/data
+trading-agent (shortcut)/logs
+trading-agent (shortcut)/state
+trading-agent (shortcut)/node_modules
+trading-agent (shortcut)/sim
+trading-agent (shortcut)/tests
+trading-agent (shortcut)/dashboard/agent
 trading-simm-play
 ```

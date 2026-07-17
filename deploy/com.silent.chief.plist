@@ -9,11 +9,11 @@
   <key>ProgramArguments</key>
   <array>
     <string>/usr/bin/python3</string>
-    <string>/Users/silent/Desktop/silent graph/trading-agent 3/agents/chief.py</string>
+    <string>/Users/silent/trading-agent 2/agents/chief.py</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/silent/Desktop/silent graph/trading-agent 3</string>
+  <string>/Users/silent/trading-agent 2</string>
 
   <!-- 6:00 AM (pre-open, after SAGE 5 AM) and 4:30 PM (post-close) Arizona MST (UTC-7) -->
   <key>StartCalendarInterval</key>
@@ -35,10 +35,10 @@
   <false/>
 
   <key>StandardOutPath</key>
-  <string>/Users/silent/Desktop/silent graph/trading-agent 3/logs/chief.log</string>
+  <string>/Users/silent/trading-agent 2/logs/chief.log</string>
 
   <key>StandardErrorPath</key>
-  <string>/Users/silent/Desktop/silent graph/trading-agent 3/logs/chief_error.log</string>
+  <string>/Users/silent/trading-agent 2/logs/chief_error.log</string>
 
   <key>Nice</key>
   <integer>10</integer>
