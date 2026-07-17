@@ -9,6 +9,7 @@ export const paths = {
   goals:       path.join(DATA, 'goals.json'),
   finance:     path.join(DATA, 'finance.json'),
   tabUsage:    path.join(DATA, 'tab_usage.json'),
+  journalNotes: path.join(DATA, 'journal_notes.json'),
 }
 
 export function readJSON<T>(p: string, fallback: T): T {

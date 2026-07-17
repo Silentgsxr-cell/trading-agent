@@ -1,6 +1,7 @@
 import { getDecisions } from "@/lib/runtime";
 import { getJournal, type JournalTrade } from "@/lib/journal";
 import { usd, pnlClass, ago } from "@/lib/format";
+import NotesPanel from "./NotesPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,8 @@ export default async function LogsPage() {
             )}
           </div>
         </section>
+
+        <NotesPanel />
       </div>
     </div>
   );
