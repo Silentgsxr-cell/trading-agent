@@ -14,6 +14,23 @@ ClawOps is Silent's autonomous ORB paper trading system built on a multi-agent a
 
 ---
 
+## Changelog
+
+Most recent first. For full detail on any entry, see the git log or the dated session log in `docs/SESSION_LOG_*.md`.
+
+### 2026-07-16
+- **Fixed a real bug** in `lib/agents.ts`: the stub/live detector matched `raise NotImplementedError` anywhere in a file, so CHIEF and SAGE — whose own source contains that exact string as a literal (they scan other agents for it) — were mislabeled "stub." Regex anchored to line start.
+- **Added live agent-status plumbing**: `AgentBrain.start_task/update_task/finish_task/error()` (`utils/agent_brain.py`) writes to `state/agent_status.json` (filelock-protected). New `/api/agents` route exposes it; `AgentCard` and a new Sidebar crew-health strip render it (thinking/idle/error, progress, queue, confidence). Wired into CHIEF, INTEL, SAGE, WATCH.
+- **Sidebar reorganized** into department groups (Trading / Intelligence / Personal / System); fixed a dead `localhost:5000` fetch for the suggestion badge, left over from the Flask migration.
+- **Added a Notes section to the Journal tab** — add/remove free-form notes, `data/journal_notes.json` via `/api/journal/notes`.
+- **CHIEF's and SAGE's LaunchAgents installed** and confirmed armed via `launchctl print` (CHIEF: 6:00 AM / 4:30 PM AZ, SAGE: 5:00 AM / 5:30 PM AZ).
+- **Found: `ANTHROPIC_API_KEY` is invalid/revoked** — live run returns `HTTP 401 authentication_error: API key is invalid`, not a credits/billing error as previously assumed. A fresh key from `console.anthropic.com` is required; credits still matter after that.
+- 6 Discord webhook URLs provided by the operator but not yet written to `.env` — blocked by a local security hook on direct `.env` edits, needs to be done manually.
+- Renamed the vault symlink `trading-agent 3` → `trading-agent (shortcut)`; fixed `.obsidianignore` and `deploy/com.silent.chief.plist`, both of which still referenced the old symlink path.
+- Freed ~42GB of disk space (an unused Parallels Windows 11 VM + its ISO installer, plus Downloads clutter) after the machine hit `ENOSPC`.
+
+---
+
 ## Project Location
 
 ```
@@ -84,18 +101,19 @@ python3 runner.py                  # Trading loop (weekdays 9:30–16:00 ET)
 │   │   ├── dev/DevClient.tsx      # Dev Queue — ticket system
 │   │   ├── suggestions/           # Suggestion whiteboard
 │   │   ├── finance/               # Finance tab
-│   │   ├── logs/                  # Decision feed
+│   │   ├── logs/                  # Journal — Decision feed, journaled trades, Notes
+│   │   │   └── NotesPanel.tsx     # Add/remove free-form notes (data/journal_notes.json)
 │   │   ├── memory/                # Intelligence
 │   │   ├── markets/               # Markets + TradingView chart
-│   │   └── api/                   # ← All API routes (see below)
+│   │   └── api/                   # ← All API routes (see below), incl. api/agents/, api/journal/notes/
 │   ├── components/
-│   │   ├── Sidebar.tsx            # Nav with suggestion badge
-│   │   ├── AgentCard.tsx
+│   │   ├── Sidebar.tsx            # Grouped nav (Trading/Intelligence/Personal/System) + crew-health strip
+│   │   ├── AgentCard.tsx          # Renders live status (thinking/idle/error) from AgentBrain
 │   │   ├── TabTracker.tsx         # Analytics tracking
 │   │   └── ...
 │   └── lib/
 │       ├── dataPath.ts            # Shared JSON read/write utility
-│       ├── agents.ts              # Agent registry
+│       ├── agents.ts              # Agent registry + live-status merge (reads state/agent_status.json)
 │       ├── chief.ts               # Reads logs/chief_assessment.json for the /chief page
 │       ├── finance.ts
 │       ├── tickets.ts
@@ -106,11 +124,13 @@ python3 runner.py                  # Trading loop (weekdays 9:30–16:00 ET)
 │   ├── goals.json                 # Life goals
 │   ├── finance.json               # Accounts, debts, budget
 │   ├── journal.csv                # Trade journal
+│   ├── journal_notes.json         # Journal tab free-form notes
 │   └── tab_usage.json             # Tab analytics
 ├── state/                         # Runtime only — excluded from git
 │   ├── session.json
 │   ├── decisions.jsonl
-│   └── signals.jsonl
+│   ├── signals.jsonl
+│   └── agent_status.json          # Live agent status (AgentBrain start_task/finish_task/error)
 ├── deploy/
 │   ├── com.silent.watchdog.plist
 │   ├── com.silent.devagent.plist
@@ -172,6 +192,18 @@ All routes are relative — no Flask, no external server dependency.
 |--------|-------|-------------|
 | POST | `/api/analytics/tab` | Log tab view event |
 
+### Journal
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/journal/notes` | List all notes |
+| POST | `/api/journal/notes` | Create a note |
+| DELETE | `/api/journal/notes/[id]` | Remove a note |
+
+### Agents
+| Method | Route | Description |
+|--------|-------|-------------|
+| GET | `/api/agents` | Full crew list + live status (from `state/agent_status.json`) + crew health summary |
+
 ---
 
 ## Agent Roster
@@ -186,7 +218,7 @@ All routes are relative — no Flask, no external server dependency.
 | **WATCH** | `utils/watchdog.py` | 7-check security monitor (60s) | Live — LaunchAgent |
 | **INTEL** | `utils/daitaos.py` | 9-section morning brief + Discord | Live |
 | **SAGE** | `utils/suggestion_agent.py` | Twice-daily advisor | Live — LaunchAgent |
-| **CHIEF** | `agents/chief.py` | Chief of Staff — reads all agent state, one Claude API call, writes `logs/chief_assessment.json` for the `/chief` cockpit home page | Built, committed — LaunchAgent (`deploy/com.silent.chief.plist`) not yet installed |
+| **CHIEF** | `agents/chief.py` | Chief of Staff — reads all agent state, one Claude API call, writes `logs/chief_assessment.json` for the `/chief` cockpit home page | Live — LaunchAgent installed and armed. Real (non-dry-run) calls currently fail: `ANTHROPIC_API_KEY` is invalid, needs regeneration |
 
 ---
 
@@ -201,8 +233,8 @@ All services point to `~/trading-agent 2/`. Plist source files live in `deploy/`
 | `com.silent.dataos` | 6:20 AM daily | `utils/daitaos.py` |
 | `com.silent.dataos.sync` | 4:30 PM daily | `utils/daitaos_sync.py` |
 | `com.silent.devagent` | 5:00 AM + 5:30 PM | `utils/dev_agent.py` |
-| `com.silent.suggestion` | 5:00 AM + 5:30 PM | `utils/suggestion_agent.py` |
-| `com.silent.chief` | 6:00 AM + 4:30 PM AZ | `agents/chief.py` — plist exists in `deploy/`, **not yet installed** to `~/Library/LaunchAgents` |
+| `com.silent.suggestion` | 5:00 AM + 5:30 PM | `utils/suggestion_agent.py` — installed 2026-07-16, confirmed armed via `launchctl print` |
+| `com.silent.chief` | 6:00 AM + 4:30 PM AZ | `agents/chief.py` — installed 2026-07-16, confirmed armed via `launchctl print` |
 
 **Reinstall after any path change:**
 ```bash
@@ -254,7 +286,7 @@ sleep 2
 python3 utils/dev_agent.py
 ```
 
-> **Blocked:** Anthropic account needs credits at `console.anthropic.com` → Plans & Billing.
+> **Blocked:** `ANTHROPIC_API_KEY` is invalid (401) — needs a fresh key at `console.anthropic.com` → Settings → API Keys, then credits at Plans & Billing.
 
 ---
 
@@ -284,7 +316,7 @@ Bot runs via `utils/daitaos_bot.py`. Invite token in `.env` as `DISCORD_BOT_TOKE
 File: `~/trading-agent 2/.env` — never committed to git.
 
 ```
-ANTHROPIC_API_KEY=           # Claude API — dev agent + morning brief
+ANTHROPIC_API_KEY=           # Claude API — dev agent, CHIEF, SAGE
 DISCORD_BOT_TOKEN=           # Discord bot login
 DISCORD_MORNING_BRIEF_WEBHOOK=    # daitaos.py channel
 DISCORD_TRADE_ALERTS_WEBHOOK=     # reserved (execution agent)
@@ -293,6 +325,10 @@ DISCORD_DEV_AGENT_WEBHOOK=        # dev_agent.py updates
 DISCORD_SUGGESTIONS_WEBHOOK=      # priority ≥ 9 suggestions
 DISCORD_AGENT_ACTIVITY_WEBHOOK=   # suggestion_agent cycle summaries
 ```
+
+> **`ANTHROPIC_API_KEY` is currently invalid** (HTTP 401 `authentication_error`, confirmed 2026-07-16) — not a credits/billing issue as earlier notes assumed. Generate a fresh key at `console.anthropic.com` → Settings → API Keys.
+>
+> The 6 `DISCORD_*_WEBHOOK` vars are still empty as of 2026-07-16 — URLs were provided by the operator but not yet written to `.env`.
 
 ---
 
@@ -318,6 +354,7 @@ All shared state files are owned by one utility. No other file writes to them di
 | `state/session.json` | `utils/state_manager.py` |
 | `state/decisions.jsonl` | `utils/event_log.py` |
 | `data/journal.csv` | `utils/journal_writer.py` |
+| `state/agent_status.json` | `utils/agent_brain.py` (`AgentBrain._write_status`, filelock) — many agents write, all through this one function |
 
 ---
 
@@ -352,7 +389,9 @@ All shared state files are owned by one utility. No other file writes to them di
 | Life tab (Calendar, Tasks, Goals, Finance) | ✅ |
 | Flask → Next.js API migration | ✅ |
 | Apple Calendar via osascript | ✅ (wired, needs macOS permission grant) |
-| CHIEF — master orchestrator | ✅ Built + committed (`agents/chief.py`, `/chief` cockpit page) — LaunchAgent not yet installed |
+| CHIEF — master orchestrator | ✅ Live, LaunchAgent installed and armed |
+| Live agent-status plumbing (AgentBrain → `/api/agents` → Sidebar/AgentCard) | ✅ (2026-07-16) |
+| Journal Notes (add/remove) | ✅ (2026-07-16) |
 | Webull data feed (PULSE live) | ⬜ Not started |
 | Paper execution (TRIGGER live) | ⬜ Not started |
 | Calendar tab — trading schedule / FOMC | ⬜ Not started |
@@ -362,12 +401,11 @@ All shared state files are owned by one utility. No other file writes to them di
 
 ## Next Priorities
 
-1. **Install CHIEF's LaunchAgent** — `cp deploy/com.silent.chief.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.silent.chief.plist` (code is built and committed; it just isn't scheduled yet)
-2. **Apple Calendar permission** — grant `npm` / Node access in System Settings → Privacy → Calendars
-3. **Anthropic API credits** — `console.anthropic.com` → Plans & Billing → TICKET-001 ready to run, also required for CHIEF's Claude API call
-4. **Populate Discord webhooks** — 6 vars in `.env`
-5. **Webull data agent** — wire PULSE to real bar + options chain data
-6. **Paper execution** — wire TRIGGER to journal_writer fill simulation
+1. **Regenerate `ANTHROPIC_API_KEY`** — current key is invalid/revoked (401), not a credits issue. Get a fresh one at `console.anthropic.com` → Settings → API Keys, add credits at Plans & Billing. Blocks CHIEF, SAGE, and the dev agent's real (non-dry-run) runs, including TICKET-001.
+2. **Write the 6 Discord webhook URLs into `.env`** — provided by the operator 2026-07-16, not yet saved
+3. **Apple Calendar permission** — grant `npm` / Node access in System Settings → Privacy → Calendars
+4. **Webull data agent** — wire PULSE to real bar + options chain data
+5. **Paper execution** — wire TRIGGER to journal_writer fill simulation
 
 ---
 
