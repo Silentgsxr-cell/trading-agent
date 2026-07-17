@@ -24,6 +24,7 @@ export const PATHS = {
   sessionJson: path.join(PROJECT_ROOT, "state", "session.json"),
   signalsJsonl: path.join(PROJECT_ROOT, "state", "signals.jsonl"),
   decisionsJsonl: path.join(PROJECT_ROOT, "state", "decisions.jsonl"),
+  agentStatusJson: path.join(PROJECT_ROOT, "state", "agent_status.json"),
   financeJson: path.join(PROJECT_ROOT, "data", "finance.json"),
   vaultRoot: VAULT_ROOT,
 };

@@ -14,8 +14,13 @@ import os
 import re
 import time
 import logging
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from typing import Optional
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    ZoneInfo = None
 
 try:
     from filelock import FileLock
@@ -25,6 +30,36 @@ except ImportError:
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SUGGESTIONS_FILE = os.path.join(_ROOT, "data", "suggestions.json")
 _REASONING_LOG    = os.path.join(_ROOT, "logs", "agent_reasoning.log")
+_STATUS_FILE      = os.path.join(_ROOT, "state", "agent_status.json")
+_STATUS_LOCK      = _STATUS_FILE + ".lock"
+
+# Known recurring schedules, AZ time ("HH:MM", 24h). Used to compute
+# next_scheduled_action automatically when an agent doesn't pass one
+# explicitly. Agents not listed here (continuous processes, or ones
+# invoked ad hoc by runner.py) return None — the dashboard should show
+# "—" rather than guess.
+_SCHEDULE = {
+    "CHIEF": ["06:00", "16:30"],
+    "SAGE":  ["05:00", "17:30"],
+    "INTEL": ["06:20"],
+}
+
+
+def _next_scheduled(agent_id: str) -> Optional[str]:
+    times = _SCHEDULE.get(agent_id)
+    if not times or ZoneInfo is None:
+        return None
+    az = ZoneInfo("America/Phoenix")
+    now = datetime.now(az)
+    candidates = []
+    for t in times:
+        hh, mm = (int(x) for x in t.split(":"))
+        cand = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
+        if cand <= now:
+            cand += timedelta(days=1)
+        candidates.append(cand)
+    nxt = min(candidates)
+    return nxt.strftime("%-I:%M %p AZ")
 
 # Paths that trigger auto "locked_file" flag when found in affected_files
 _BLOCKED_PATHS = [
@@ -98,6 +133,29 @@ def _save_suggestions(cards: list) -> None:
             json.dump(cards, f, indent=2, default=str)
 
 
+def _load_status() -> dict:
+    if not os.path.exists(_STATUS_FILE):
+        return {}
+    try:
+        with open(_STATUS_FILE) as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def _save_status(data: dict) -> None:
+    os.makedirs(os.path.dirname(_STATUS_FILE), exist_ok=True)
+    if FileLock is not None:
+        lock = FileLock(_STATUS_LOCK, timeout=5)
+        with lock:
+            with open(_STATUS_FILE, "w") as f:
+                json.dump(data, f, indent=2, default=str)
+    else:
+        with open(_STATUS_FILE, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+
+
 def _next_sug_id(cards: list) -> str:
     nums = []
     for c in cards:
@@ -158,6 +216,85 @@ class AgentBrain:
         if self._cycle_date != today:
             self._cycle_date  = today
             self._cycle_count = 0
+
+    # ── Live status reporting (state/agent_status.json) ─────────────────────
+    #
+    # Every real agent run should bracket its work with start_task(...) /
+    # finish_task(...) (or error(...) on failure). update_task(...) is
+    # optional, for reporting progress mid-run on longer cycles. This is
+    # the ONLY source Mission Control uses for "what is this agent doing
+    # right now" — no hardcoded/simulated status anywhere in the UI.
+
+    def _write_status(self, **fields) -> None:
+        data = _load_status()
+        entry = data.get(self.agent_id, {})
+        entry.update(fields)
+        entry["last_heartbeat"] = datetime.now().isoformat()
+        data[self.agent_id] = entry
+        _save_status(data)
+
+    def start_task(
+        self,
+        task: str,
+        queue_len: Optional[int] = None,
+        confidence: Optional[float] = None,
+        waiting_on: Optional[str] = None,
+    ) -> None:
+        """Call at the start of a run/cycle."""
+        self._write_status(
+            status="thinking",
+            current_task=task,
+            progress_pct=0,
+            queue_len=queue_len,
+            confidence=confidence,
+            waiting_on=waiting_on,
+            started_at=datetime.now().isoformat(),
+        )
+
+    def update_task(
+        self,
+        task: Optional[str] = None,
+        progress_pct: Optional[int] = None,
+        queue_len: Optional[int] = None,
+        confidence: Optional[float] = None,
+        waiting_on: Optional[str] = None,
+    ) -> None:
+        """Call mid-run to report progress on a longer cycle."""
+        fields: dict = {"status": "thinking"}
+        if task is not None:         fields["current_task"] = task
+        if progress_pct is not None: fields["progress_pct"] = progress_pct
+        if queue_len is not None:    fields["queue_len"] = queue_len
+        if confidence is not None:   fields["confidence"] = confidence
+        if waiting_on is not None:   fields["waiting_on"] = waiting_on
+        self._write_status(**fields)
+
+    def finish_task(self, last_action: str, next_scheduled_action: Optional[str] = None) -> None:
+        """Call when a run/cycle completes successfully."""
+        self._write_status(
+            status="idle",
+            current_task=None,
+            progress_pct=None,
+            queue_len=None,
+            confidence=None,
+            waiting_on=None,
+            last_action=last_action,
+            last_completed_at=datetime.now().isoformat(),
+            next_scheduled_action=next_scheduled_action or _next_scheduled(self.agent_id),
+        )
+
+    def error(self, message: str) -> None:
+        """Call when a run/cycle fails."""
+        self._write_status(
+            status="error",
+            current_task=None,
+            progress_pct=None,
+            queue_len=None,
+            confidence=None,
+            waiting_on=None,
+            last_action=message,
+            last_completed_at=datetime.now().isoformat(),
+            next_scheduled_action=_next_scheduled(self.agent_id),
+        )
 
     # ── Public API ────────────────────────────────────────────────────────
 

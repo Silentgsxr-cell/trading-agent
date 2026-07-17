@@ -23,6 +23,11 @@ sys.path.insert(0, _ROOT)
 
 from utils.agent_brain import AgentBrain, AGENT_AVATARS, _post_discord
 
+# Status-reporting identity for SAGE itself (separate from the per-suggestion
+# AgentBrain instances created below, which post cards under other agents'
+# names — e.g. a suggestion about VAULT posts as VAULT, not SAGE).
+_status_brain = AgentBrain("SAGE", "#eab308")
+
 log = logging.getLogger("suggestion_agent")
 log.setLevel(logging.INFO)
 log.propagate = False
@@ -264,16 +269,19 @@ def run(dry_run: bool = False) -> None:
                     os.environ.setdefault(k.strip(), v.strip())
 
     # Gather context
+    _status_brain.start_task("Reading 9 data sources", queue_len=9)
     log.info("Gathering context from data sources...")
     context = _gather_context()
     log.info("Context bundle: %d bytes total", sum(len(str(v)) for v in context.values()))
 
     # Claude API call
+    _status_brain.update_task("Calling Claude for suggestions", waiting_on="Anthropic API")
     log.info("Calling Claude API...")
     result = _call_claude(context, dry_run=dry_run)
 
     if result is None:
         log.error("No result from Claude — aborting cycle")
+        _status_brain.error("Claude API call failed — check ANTHROPIC_API_KEY")
         return
 
     suggestions = result.get("suggestions", [])
@@ -316,6 +324,7 @@ def run(dry_run: bool = False) -> None:
     _log_cycle(n_posted, sum(1 for s in suggestions if int(s.get("priority", 0)) >= 9), cycle_summary)
 
     log.info("=== Cycle complete: %d suggestions posted ===", n_posted)
+    _status_brain.finish_task(f"Posted {n_posted} suggestion(s) — {cycle_summary[:80]}")
 
 
 if __name__ == "__main__":
@@ -324,6 +333,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     try:
         run(dry_run=args.dry_run)
-    except Exception:
+    except Exception as exc:
         log.error("Suggestion agent crashed:\n%s", traceback.format_exc())
+        _status_brain.error(f"Crashed: {exc}")
         sys.exit(1)

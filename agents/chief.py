@@ -286,22 +286,27 @@ def run(dry_run: bool = False) -> None:
                     k, _, v = line.partition("=")
                     os.environ.setdefault(k.strip(), v.strip())
 
+    brain.start_task("Gathering context from all agents", queue_len=8)
     log.info("Gathering context from all agents...")
     context = _gather_context()
     log.info("Context bundle: %d bytes", sum(len(str(v)) for v in context.values()))
 
+    brain.update_task("Calling Claude for master assessment", waiting_on="Anthropic API")
     log.info("Calling Claude API...")
     result = _call_claude(context, dry_run=dry_run)
 
     if result is None:
         log.error("No result from Claude — aborting cycle")
+        brain.error("Claude API call failed — check ANTHROPIC_API_KEY")
         return
 
     if not dry_run:
         _write_assessment(result)
         _post_to_discord(result)
+        brain.finish_task(f"Posted assessment — {result.get('directive', '')[:100]}")
     else:
         log.info("[DRY RUN] Assessment:\n%s", json.dumps(result, indent=2))
+        brain.finish_task("Dry run complete — assessment gathered, not written")
 
     log.info("=== CHIEF cycle complete ===")
     log.info("Health: %s | Readiness: %s%% | Directive: %s",
@@ -314,6 +319,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     try:
         run(dry_run=args.dry_run)
-    except Exception:
+    except Exception as exc:
         log.error("CHIEF crashed:\n%s", traceback.format_exc())
+        brain.error(f"Crashed: {exc}")
         sys.exit(1)

@@ -26,6 +26,12 @@ from config import risk_config as cfg
 from config import strategy_config as scfg
 from utils.daitaos_logger import log
 
+try:
+    from utils.agent_brain import AgentBrain
+    brain = AgentBrain("INTEL", "#4fc3f7")
+except Exception:
+    brain = None
+
 WEBHOOK_URL  = os.getenv("DISCORD_MORNING_BRIEF_WEBHOOK", "")
 EASTERN      = pytz.timezone("America/New_York")
 ARIZONA      = pytz.timezone("America/Phoenix")
@@ -396,11 +402,18 @@ def s9_dev_overnight() -> str:
 def send_brief():
     if not WEBHOOK_URL:
         print("ERROR: DISCORD_MORNING_BRIEF_WEBHOOK not set in .env")
+        if brain:
+            brain.error("DISCORD_MORNING_BRIEF_WEBHOOK not set in .env")
         sys.exit(1)
+
+    if brain:
+        brain.start_task("Building morning brief — 9 sections", queue_len=9)
 
     now_az = datetime.datetime.now(ARIZONA)
 
     print("Fetching market data…")
+    if brain:
+        brain.update_task("Fetching market data + watchlist scan", progress_pct=20)
     fields = [
         {"name": "📅  DATE & MARKET STATUS",   "value": s1_date_status(), "inline": False},
         {"name": "📈  TSLA DIRECTION BIAS",     "value": s2_tsla_bias(),   "inline": False},
@@ -412,6 +425,8 @@ def send_brief():
         {"name": "💡  SILENT'S EDGE REMINDER",  "value": s8_edge(),           "inline": False},
         {"name": "⌬   DEV AGENT OVERNIGHT",     "value": s9_dev_overnight(),  "inline": False},
     ]
+    if brain:
+        brain.update_task("Composing Discord embed", progress_pct=80)
 
     # Measure total embed size; split at section 5 if approaching 5800 chars
     total = sum(len(f["name"]) + len(f["value"]) for f in fields) + 40
@@ -453,9 +468,13 @@ def send_brief():
 
         # Write structured log for Master Chief home page
         _write_brief_log(fields, now_az)
+        if brain:
+            brain.finish_task(f"Sent morning brief — {tsla_line}")
     else:
         print(f"❌  Discord error {resp.status_code}: {resp.text}")
         log("⚠️", "Morning Brief Failed", f"Discord returned {resp.status_code}")
+        if brain:
+            brain.error(f"Discord error {resp.status_code}")
         sys.exit(1)
 
 

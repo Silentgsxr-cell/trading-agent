@@ -608,9 +608,13 @@ class Watchdog:
         while self._running:
             self._cycle += 1
             try:
+                if _brain:
+                    _brain.start_task("Running 7 security checks", queue_len=7)
                 self._run_checks()
             except Exception as exc:
                 _log("ERROR", f"Unexpected error in check cycle: {exc}")
+                if _brain:
+                    _brain.error(f"Check cycle crashed: {exc}")
             for _ in range(CHECK_INTERVAL):
                 if not self._running:
                     break
@@ -769,6 +773,10 @@ class Watchdog:
 
         if issues == 0:
             _log("CLEAN", f"[{self._cycle}] [{ts}] All checks passed — system healthy")
+
+        if _brain:
+            summary = "All 7 checks passed" if issues == 0 else f"{issues} issue(s) flagged this cycle"
+            _brain.finish_task(f"[{ts}] {summary}", next_scheduled_action=f"Next cycle in {CHECK_INTERVAL}s")
 
 
 if __name__ == "__main__":

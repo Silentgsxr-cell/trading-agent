@@ -1,9 +1,16 @@
 import type { AgentCard as Agent } from "@/lib/agents";
+import { ago } from "@/lib/format";
 
 const STATUS_META: Record<Agent["status"], { label: string; chip: string; dot: string }> = {
   live:    { label: "Live",      chip: "border-signal-live/40 bg-signal-live/10 text-signal-live", dot: "bg-signal-live animate-pulseDot" },
   stub:    { label: "Stub",      chip: "border-signal-warn/40 bg-signal-warn/10 text-signal-warn", dot: "bg-signal-warn" },
   missing: { label: "Not built", chip: "border-signal-dim/40 bg-navy-700/40 text-signal-dim",      dot: "bg-signal-dim" },
+};
+
+const LIVE_META: Record<NonNullable<Agent["live"]>["state"], { label: string; chip: string; dot: string }> = {
+  thinking: { label: "Thinking", chip: "border-blue-400/40 bg-blue-400/10 text-blue-300",          dot: "bg-blue-400 animate-pulseDot" },
+  idle:     { label: "Idle",     chip: "border-signal-dim/40 bg-navy-700/40 text-signal-dim",       dot: "bg-signal-dim" },
+  error:    { label: "Error",    chip: "border-maroon-400/50 bg-maroon-600/15 text-maroon-300",     dot: "bg-maroon-400" },
 };
 
 const RING_LABEL: Record<Agent["ring"], string> = {
@@ -51,6 +58,56 @@ export function AgentCardView({ agent }: { agent: Agent }) {
           </div>
 
           <p className="text-[12px] leading-relaxed text-slate-400">{agent.summary}</p>
+
+          {agent.live && (
+            <div className="space-y-1.5 border-t border-edge pt-2">
+              <div className="flex items-center justify-between">
+                <span className={`chip ${LIVE_META[agent.live.state].chip}`}>
+                  <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${LIVE_META[agent.live.state].dot}`} />
+                  {LIVE_META[agent.live.state].label}
+                </span>
+                {agent.live.lastHeartbeat && (
+                  <span className="text-[10px] text-signal-dim">{ago(new Date(agent.live.lastHeartbeat).getTime())}</span>
+                )}
+              </div>
+
+              {agent.live.state === "thinking" && (
+                <>
+                  {agent.live.currentTask && (
+                    <div className="text-[11.5px] text-slate-300">{agent.live.currentTask}</div>
+                  )}
+                  {agent.live.progressPct !== null && (
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-navy-700">
+                      <div
+                        className="h-full bg-blue-400 transition-all"
+                        style={{ width: `${agent.live.progressPct}%` }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-signal-dim">
+                    {agent.live.queueLen !== null && <span>Queue {agent.live.queueLen}</span>}
+                    {agent.live.confidence !== null && <span>Confidence {Math.round(agent.live.confidence * 100)}%</span>}
+                    {agent.live.waitingOn && <span>Waiting on {agent.live.waitingOn}</span>}
+                  </div>
+                </>
+              )}
+
+              {agent.live.state === "idle" && (
+                <>
+                  {agent.live.lastAction && (
+                    <div className="text-[11px] text-slate-400">Last: {agent.live.lastAction}</div>
+                  )}
+                  {agent.live.nextScheduledAction && (
+                    <div className="text-[10px] text-signal-dim">Next: {agent.live.nextScheduledAction}</div>
+                  )}
+                </>
+              )}
+
+              {agent.live.state === "error" && agent.live.lastAction && (
+                <div className="text-[11px] text-maroon-300">{agent.live.lastAction}</div>
+              )}
+            </div>
+          )}
 
           {agent.blockers.length > 0 && (
             <ul className="mt-1 space-y-1 border-t border-edge pt-2">
